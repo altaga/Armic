@@ -39,7 +39,6 @@ void setup() {
   }
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-  Serial.println("Edge Impulse Inferencing Demo");
 }
 
 void loop() {

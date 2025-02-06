@@ -1,7 +1,7 @@
 "use server";
 import mqtt from "mqtt";
 
-// Stateful Server 
+// Stateful Server
 let state = {};
 
 const settings = {
@@ -11,14 +11,13 @@ const settings = {
 };
 
 const host = process.env.MQTT_BROKER_URL;
-const topics = ["esp32/output"];
+const topics = ["esp32/output", "webpage/input"];
 
 // MQTT server
 const client = mqtt.connect(host, settings);
 // MQTT Server Connection
 client.on("connect", () => {
   console.log("Connected to MQTT server");
-  client.publish("webpage/output", "Hello from Armic");
   topics.forEach((topic) =>
     client.subscribe(topic, (err) =>
       err ? console.log(err) : console.log(`Subscribed to ${topic}`)
@@ -40,6 +39,13 @@ export async function getState() {
   return state;
 }
 
-export async function promptChat() {
-  return state;
+export async function promptChat(command, message) {
+  console.log(command, message);
+  client.publish(
+    "webpage/output",
+    JSON.stringify({
+      command,
+      message,
+    })
+  );
 }

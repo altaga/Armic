@@ -18,6 +18,7 @@
     "next": "15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-linkify": "^1.0.0-alpha",
     "ws": "^8.18.0"
   },
   "devDependencies": {

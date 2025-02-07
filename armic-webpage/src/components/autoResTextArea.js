@@ -1,34 +1,34 @@
 import React, { useState, useEffect, useRef } from "react";
 
 const AutoResizingTextArea = (props) => {
-  const [text, setText] = useState("");
   const textAreaRef = useRef(null);
 
   useEffect(() => {
     // Adjust the height of the textarea based on its content
     textAreaRef.current.style.height = "auto";
-    textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
-  }, [text]);
+    textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight-20}px`;
+    props.onChangeHeight(`${textAreaRef.current.scrollHeight + 20}px`);
+  }, [props.message]);
 
   const handleChange = (event) => {
-    setText(event.target.value);
     props.onChange(event.target.value);
   };
 
   return (
     <textarea
+      placeholder="Type your message here..."
       ref={textAreaRef}
-      value={text}
+      value={props.message}
       onChange={handleChange}
       style={{
-        fontFamily: "Roboto Mono",
+        fontFamily: "monospace",
         fontSize: "16px",
-        padding: "20px 10px 0px 10px",
+        padding: "10px 10px 10px 10px",
         backgroundColor: "black",
-        width: "50%",
+        width: "100%",
         color: "white",
         maxHeight: "100px",
-        borderRadius: "5px",
+        borderRadius: "10px",
         border: "1px solid #ccc",
         resize: "none",
       }}

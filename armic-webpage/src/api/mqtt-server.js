@@ -17,7 +17,6 @@ const topics = ["esp32/output", "webpage/input"];
 const client = mqtt.connect(host, settings);
 // MQTT Server Connection
 client.on("connect", () => {
-  console.log("Connected to MQTT server");
   topics.forEach((topic) =>
     client.subscribe(topic, (err) =>
       err ? console.log(err) : console.log(`Subscribed to ${topic}`)
@@ -32,6 +31,7 @@ client.on("connect", () => {
 });
 
 export async function startServers() {
+  state = {};
   return "Servers started";
 }
 
@@ -40,7 +40,6 @@ export async function getState() {
 }
 
 export async function promptChat(command, message) {
-  console.log(command, message);
   client.publish(
     "webpage/output",
     JSON.stringify({

@@ -24,7 +24,7 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  startServers();
+  startServers().then(() => console.log("Servers started"));
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>

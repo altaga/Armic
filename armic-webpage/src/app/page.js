@@ -1,5 +1,5 @@
 "use client";
-import { getState, promptChat } from "@/api/mqtt-server";
+import { getState, promptChat, resetServerVars } from "@/api/mqtt-server";
 import AutoResizingTextArea from "@/components/autoResTextArea";
 import SendIcon from "@mui/icons-material/Send";
 import { Button } from "@mui/material";
@@ -31,6 +31,7 @@ export default function Home() {
   const [messages, setMessages] = useState([]);
   const [height, setHeight] = useState("0px");
   useEffect(() => {
+    resetServerVars().then(() => console.log("Servers restarted"));
     const interval = setInterval(async () => {
       setState(await getState());
     }, 1000);

@@ -13,12 +13,27 @@ Hardware:
 Software:
 - [Eclipse Mosquitto](https://github.com/eclipse-mosquitto/mosquitto)
 - [Arduino IDE](https://www.arduino.cc/en/software)
+- [Ollama](https://ollama.com/)
+- [LangGraph](https://www.langchain.com/langgraph)
+- [Edge Impulse](https://edgeimpulse.com/)
+
+## System Diagram:
+
+<img src="./Images/system.png">
+
+- 
+
+## AI Exercise Tracker:
+
+AI Exercise Tracker Diagram:
+
+<img src="./Images/Exercise Tracking.png" width="70%">
 
 ## Arm Digital Driver:
 
 Arm Digital Driver Diagram:
 
-<img src="./Images/armdriver.png" width="50%">
+<img src="./Images/armdriver.png" width="70%">
 
 ## Exercise Tracker Model:
 

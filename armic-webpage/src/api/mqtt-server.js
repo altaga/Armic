@@ -31,8 +31,12 @@ client.on("connect", () => {
 });
 
 export async function startServers() {
-  state = {};
   return "Servers started";
+}
+
+export async function resetServerVars() {
+  state = {};
+  return "Servers Restarted";
 }
 
 export async function getState() {

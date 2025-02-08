@@ -1,9 +1,8 @@
 "use client";
+import { resetServerVars } from "@/api/mqtt-server";
 import { ThemeProvider } from "@emotion/react";
 import { createTheme } from "@mui/material";
 import { lightBlue, lightGreen } from "@mui/material/colors";
-import { dark } from "@mui/material/styles/createPalette";
-import React from "react";
 
 const theme = createTheme({
   palette: {
@@ -19,5 +18,6 @@ const theme = createTheme({
 });
 
 export default function Providers({ children }) {
+  resetServerVars().then(() => console.log("Servers started"));
   return <ThemeProvider theme={theme}>{children}</ThemeProvider>;
 }

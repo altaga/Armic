@@ -1,5 +1,7 @@
 # Armic
 
+<img src="./Images/Armic Logo.png">
+
 ARMIC is a Platform that fuses advanced robotics, Blockchain and AI Agents to transform patient rehabilitation.
 
 # Materials:

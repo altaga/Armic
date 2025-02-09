@@ -6,42 +6,44 @@ ARMIC is a Platform that fuses advanced robotics, Blockchain and AI Agents to tr
 
 # Fast Links:
 
-[Demo Video](pending...)
+[**Demo Video**](pending...)
 
 **If you're a judge and want to go directly to any category, please click on the following references:**
 
-- [Nethermind](#nethermind)
-- [Coinbase Developer Platform](#coinbase-developer-platform)
-- [Base](#base)
+- [**Nethermind**](#nethermind)
+- [**Coinbase Developer Platform**](#coinbase-developer-platform)
+- [**Base**](#base)
 
 # Materials:
 
 Hardware:
-- [ESP32. 2x](https://www.adafruit.com/product/3405)
-- [ADXL335. 1x](https://www.adafruit.com/product/163)
-- [Robotic Arm x1.](https://www.amazon.com/OWI-Robotic-Soldering-Required-Extensive/dp/B0017OFRCY)
-- [8 Channel DC 5V Relay Module with Optocoupler x1.](https://www.amazon.com/Elegoo-Module-Optocoupler-Arduino-Raspberry/dp/B07F623PHG)
+- [**ESP32. 2x**](https://www.adafruit.com/product/3405)
+- [**ADXL335. 1x**](https://www.adafruit.com/product/163)
+- [**Robotic Arm x1.**](https://www.amazon.com/OWI-Robotic-Soldering-Required-Extensive/dp/B0017OFRCY)
+- [**8 Channel DC 5V Relay Module with Optocoupler x1.**](https://www.amazon.com/Elegoo-Module-Optocoupler-Arduino-Raspberry/dp/B07F623PHG)
 
 Software:
-- [Base](https://base.org/)
-- [CDP Agentkit](https://python.langchain.com/docs/integrations/tools/cdp_agentkit/)
-- [Remix IDE](https://remix.ethereum.org/)
-- [Eclipse Mosquitto](https://github.com/eclipse-mosquitto/mosquitto)
-- [Arduino IDE](https://www.arduino.cc/en/software)
-- [Ollama](https://ollama.com/)
-- [LangGraph](https://www.langchain.com/langgraph)
-- [Edge Impulse](https://edgeimpulse.com/)
-- [Alchemy](https://www.alchemy.com/)
-- [NextJS](https://nextjs.org/)
+- [**Base**](https://base.org/)
+- [**CDP Agentkit**](https://python.langchain.com/docs/integrations/tools/cdp_agentkit/)
+- [**Remix IDE**](https://remix.ethereum.org/)
+- [**Eclipse Mosquitto**](https://github.com/eclipse-mosquitto/mosquitto)
+- [**Arduino IDE**](https://www.arduino.cc/en/software)
+- [**Ollama**](https://ollama.com/)
+- [**LangGraph**](https://www.langchain.com/langgraph)
+- [**Edge Impulse**](https://edgeimpulse.com/)
+- [**Alchemy**](https://www.alchemy.com/)
+- [**NextJS**](https://nextjs.org/)
 
 ## System Diagram:
 
 <img src="./Images/system.png">
 
-- Base: Blockchain principal, gracias a su velocidad de transaccion la comunicacion entre losdevices IoT, Plataforma Web y AI Agents no se ve comprometida.
-- CDP Platform: Todas las interacciones entre los agentes y la blockchain se realiza mediante este toolkit compatible con LangGraph.
-- Edge Impulse: Se utilizo este AI Framework para desarrollar la AI de deteccion de ejercicios IoT.
-- Eclipse Mosquitto: Realiza la comunicacion entre todos los devices IoT, Plataforma Web y AI Agents.
+- **Base**: Blockchain principal, gracias a su velocidad de transaccion la comunicacion entre losdevices IoT, Plataforma Web y AI Agents no se ve comprometida.
+- **CDP Platform**: Todas las interacciones entre los agentes y la blockchain se realiza mediante este toolkit compatible con LangGraph.
+- **LangGraph**: Se utilizo LangGraph para generar los pipelines de AI Agents. 
+- **Base Alchemy**: Se utilizo el RPC de Alchemy como WebSocket para capturar eventos en la chain.
+- **Edge Impulse**: Se utilizo este AI Framework para desarrollar la AI de deteccion de ejercicios IoT.
+- **Eclipse Mosquitto**: Realiza la comunicacion entre todos los devices IoT, Plataforma Web y AI Agents.
 
 # Nethermind:
 
@@ -84,7 +86,7 @@ Podemos notar que aunque el usuario recibe una repuesta human redable, el servid
 
 El codigo completo de este fragmento esta en el siguiente enlace:
 
-[LLM SERVER](./LLM%20Server/Armic_Final.ipynb)
+[**LLM SERVER**](./LLM%20Server/Armic_Final.ipynb)
 
 ### IoT Devices:
 
@@ -104,7 +106,7 @@ Todos los devices fueron desarrollados con componentes y librerias open source. 
 
 El codigo completo de este fragmento esta en el siguiente enlace:
 
-[LLM SERVER](./LLM%20Server/Armic_Final.ipynb)
+[**LLM SERVER**](./LLM%20Server/Armic_Final.ipynb)
 
 ### AI Exercise Tracker:
 
@@ -130,7 +132,7 @@ Si bien la deteccion no es perfecta, para un modelo de AI como este es mejor evi
 
 El codigo completo de este IoT device es el siguiente.
 
-[AI EXERCISE TRACKER](./AI%20Exercise%20Tracker/Armic_EdgeImpulse_MQTT.ino)
+[**AI EXERCISE TRACKER**](./AI%20Exercise%20Tracker/Armic_EdgeImpulse_MQTT.ino)
 
 ### Arm Digital Driver:
 
@@ -142,15 +144,15 @@ El Arm Digital Driver se realizo de igual forma con una board ESP32 y relevadore
 
 El codigo completo de este IoT device es el siguiente.
 
-[ARM DRIVER](./Robotic%20Arm%20Driver/Armic_Driver_MQTT.ino)
+[**ARM DRIVER**](./Robotic%20Arm%20Driver/Armic_Driver_MQTT.ino)
 
 # Coinbase Developer Platform:
 
-Una parte crucial en el proyecto era el poder facilmente realizar interacciones con [Base](#base) de forma sencilla a travez de el AI Agent, para lograr esto utilizamos el AgentKit de CDP (Coinbase Developer Platform) compatible con LangGraph Python para lograr esto.
+Una parte crucial en el proyecto era el poder facilmente realizar interacciones con [**Base**](#base) de forma sencilla a travez de el AI Agent, para lograr esto utilizamos el AgentKit de CDP (Coinbase Developer Platform) compatible con LangGraph Python para lograr esto.
 
 El codigo completo del servidor esta en el siguiente enlace:
 
-[LLM SERVER](./LLM%20Server/Armic_Final.ipynb)
+[**LLM SERVER**](./LLM%20Server/Armic_Final.ipynb)
 
 ### Setup CDP Credentials:
 
@@ -231,7 +233,7 @@ Como blockchain principal para el proyecto se utilizo Base Mainnet, ya que esta 
 
 Nuestro ERC20 Tokens tiene la funcion de servir como utility token para los pacientes y devices IoT. Permtiendo que al realizar transferencias de este token a las wallets de los devices, estos realicen acciones y a los usuarios para recibir recompensas.
 
-ARM Token Contract: [CODE](./Contract/ArmicToken.sol)
+ARM Token Contract: [**CODE**](./Contract/ArmicToken.sol)
 ARM Token Contract Address: https://basescan.org/token/0x7348b50c6301fec2fa1bc4355b3fade2442f5747
 
 ### IoT, Agents and Transactions:

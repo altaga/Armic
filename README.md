@@ -234,6 +234,16 @@ Como blockchain principal para el proyecto se utilizo Base Mainnet, ya que esta 
 
 NOTA: AL no tener el hardware fisico, no podras ver las interacciones IoT fisicamente, sin embargo podras realizar las ejecuciones de trasferencias.
 
+<img src="./Images/chat.png" width="80%">
+
+Prompt Example:
+
+    Patient: 62-year-old woman, right-handed.
+    Diagnosis: Proximal humerus fracture (displaced).
+    Limitations: Pain, reduced mobility, difficulty dressing and combing her hair.
+    Goals: Reduce pain, recover mobility, improve independence in daily activities.
+    Progress: Progressive improvement in pain and mobility. Greater independence at 12 weeks. Patient: 62-year-old woman, right-handed.
+
 ### ARM Token:
 
 Nuestro ERC20 Tokens tiene la funcion de servir como utility token para los pacientes y devices IoT. Permtiendo que al realizar transferencias de este token a las wallets de los devices, estos realicen acciones y a los usuarios para recibir recompensas.

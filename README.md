@@ -240,6 +240,16 @@ Algo fundamental del proyecto fue poder controlar los devices IoT al realizar tr
 
 <img src="./Images/biot.png">
 
+1. CDP se activa por medio del AI Agent.
+2. Base Mainnet realiza la transaccion de los tokens desde la cuenta del AgentKit hacia la cuenta del Robotic Arm.
+3. Nuestro Alchemy WebSocket detecta el evento de transferencia y manda la informacion al MQTT Server.
+4. EL MQTT Server recibe la informacion del evento y la manda hacia el device IoT correspondiente a la address.
+5. Finalmente el IoT device recibe la informacion de la accion que debe de realizar.
+
+Este pipeline de eventos se ve de esta manera en la plataforma.
+
+<img src="./Images/iot.png" width="80%">
+
 # References:
 
 1. https://www.anthropic.com/research/building-effective-agents

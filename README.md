@@ -9,7 +9,7 @@ ARMIC is a Platform that fuses advanced robotics, Blockchain and AI Agents to tr
 [**Demo Video**](pending...)
 [**Web Page**](https://armic.vercel.app)
 
-**If you're a judge and want to go directly to any category, please click on the following references:**
+**If you're a judge and want to go directly to any category, here are some important links:**
 
 - [**Nethermind**](#nethermind)
 - [**Coinbase Developer Platform**](#coinbase-developer-platform)

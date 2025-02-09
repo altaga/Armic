@@ -1,0 +1,1 @@
+{"wallet_id": "XXXXX", "seed": "XXXXX", "network_id": "base-mainnet", "default_address_id": "0x338C5D7D2C8A79C9C41f8eD13c30CBa1Fd55cC1E"}

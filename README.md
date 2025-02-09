@@ -39,59 +39,58 @@ Software:
 
 <img src="./Images/system.png">
 
-- **Base**: Blockchain principal, gracias a su velocidad de transaccion la comunicacion entre losdevices IoT, Plataforma Web y AI Agents no se ve comprometida.
-- **CDP Platform**: Todas las interacciones entre los agentes y la blockchain se realiza mediante este toolkit compatible con LangGraph.
-- **LangGraph**: Se utilizo LangGraph para generar los pipelines de AI Agents. 
-- **Base Alchemy**: Se utilizo el RPC de Alchemy como WebSocket para capturar eventos en la chain.
-- **Edge Impulse**: Se utilizo este AI Framework para desarrollar la AI de deteccion de ejercicios IoT.
-- **Eclipse Mosquitto**: Realiza la comunicacion entre todos los devices IoT, Plataforma Web y AI Agents.
-
+- **Base**: Main Blockchain, thanks to its transaction speed, communication between IoT devices, Web Platform and AI Agents is not compromised.
+- **CDP Platform**: All interactions between agents and the blockchain are done through this LangGraph-compatible toolkit.
+- **LangGraph**: LangGraph was used to generate the AI ​​Agents pipelines.
+- **Base Alchemy**: Alchemy RPC was used as a WebSocket to capture events on the chain.
+- **Edge Impulse**: This AI Framework was used to develop the IoT exercise detection AI.
+- **Eclipse Mosquitto**: Performs communication between all IoT devices, Web Platform and AI Agents.
+  
 # Nethermind:
 
-Dentro de nuestro sistema de AI Agents nos basamos completamente en los diagramas del articulo de la empresa 
-Anthropic [1](#references).
+Within our AI Agents system we rely entirely on the diagrams from the Anthropic company's article [1](#references).
 
 <img src="./Images/diagram1.png">
 
 ## LLM:
 
-Todo nuestro servidor de LLM esta basado en dos servicios principales, los cuales son Ollama y LangGraph.
+Our entire LLM server is based on two main services, which are Ollama and LangGraph.
 
 <img src="./Images/langgraph.drawio.png">
 
 - Ollama:
 
-    Este sevicio nos permite de forma sencilla correr cualquier modelo LLM sin la necesidad de relizar configuraciones adicionales. Ademas de poder correr los modelos mas populares de forma local.
+   This service allows us to easily run any LLM model without the need for additional configurations. In addition to being able to run the most popular models locally.
 
 - LangGraph:
 
-    Este framework nos permite crear sistemas de agentes complejos, asi como manejar las llamadas a tools y sobretodo permitiendonos que los Agentes pudan controlar interacciones con la blockchain gracias a su integracion de AgentKit CDP.
+   This framework allows us to create complex agent systems, as well as manage tool calls and, above all, allowing Agents to control interactions with the blockchain thanks to its AgentKit CDP integration.
 
 ## Workflow: Prompt chaining
 
-Dentro de nuestra infraestructura de agentes realizamos varias cadenas de agentes, esto con el fin de activar herramientas y generar respuestas para los usuarios con lenguaje natual, siendo esta una etapa de pre procesado.
+Within our agent infrastructure we create several agent chains, this in order to activate tools and generate responses for users with natural language, this being a pre-processing stage.
 
 <img src="./Images/diagram2.png">
 
-La seccion de codigo que mejor representa esto, es la primera llamada al AI Agent, donde primero ejecutamos una consulta al agente para obtener una estructura y posteriormente pasamos esta respuesta al segundo agente el cual nos provee el mensaje final al usuario.
+The section of code that best represents this is the first call to the AI ​​Agent, where we first execute a query to the agent to obtain a structure and then pass this response to the second agent which provides the final message to the user.
 
     exercise = model_with_structure.invoke(setPrompt(my_payload["message"]))
     events = model.invoke(setPrompt2(exercise))
     client.publish("webpage/input", events.content)
 
-En la UI de nuestra pagina web podras ver la respuesta que obtiene el usuario.
+In the UI of our website you will be able to see the response that the user receives.
 
 <img src="./Images/chat.png" width="80%">
 
-Podemos notar que aunque el usuario recibe una repuesta human redable, el servidor LLM esta obteniendo variables e informacion del ejecicio que va a ejecutar en una siguiente etapa.
+We can see that although the user receives a human-readable response, the LLM server is obtaining variables and information about the exercise that it will execute in a next stage.
 
-El codigo completo de este fragmento esta en el siguiente enlace:
+The complete code for this fragment is in the following link:
 
 [**LLM SERVER**](./LLM%20Server/Armic_Final.ipynb)
 
 ### IoT Devices:
 
-Todos los devices fueron desarrollados con componentes y librerias open source. Asi como interconectados con la blockchain a travez de Web Sockets RPC y MQTT. 
+All devices were developed with open source components and libraries, as well as interconnected with the blockchain through Web Sockets RPC and MQTT.
 
     # EVM Events Setup
     contract = w3.eth.contract(address=contract_address, abi=contract_abi)
@@ -105,7 +104,7 @@ Todos los devices fueron desarrollados con componentes y librerias open source. 
 
     print(f"Subscribing to transfer events for Contract at {subscription_id}")
 
-El codigo completo de este fragmento esta en el siguiente enlace:
+The complete code for this snippet is at the following link:
 
 [**LLM SERVER**](./LLM%20Server/Armic_Final.ipynb)
 
@@ -115,11 +114,11 @@ AI Exercise Tracker Diagram:
 
 <img src="./Images/Exercise Tracking.png" width="70%">
 
-El Exercise Tracker se realizo con una board ESP32 la cual es una plataforma de hardware muy popular para realizar proyectos IoT con conectividad a internet y a su vez la board esta corriendo en Edge un modelo de AI que permite el reconocimiento de patrones complejos del acelerometro para detectar los ejecicios, para ello se utilizo la plataforma web de Edge Impulse para entrenar y deplegar el modelo.
+The Exercise Tracker was made with an ESP32 board which is a very popular hardware platform for carrying out IoT projects with internet connectivity and in turn the board is running on Edge an AI model that allows the recognition of complex accelerometer patterns to detect exercises, for this the Edge Impulse web platform was used to train and deploy the model.
 
 <img src="./Images/edgeimpulse.png">
 
-El modelo resultante de estos entrenamientos fue el siguiente.
+The resulting model from these trainings was as follows.
 
 Edge Model Accuracy:
 
@@ -129,9 +128,9 @@ Edge Model Confusion Matrix:
 
 <img src="./Images/confmatrix.png">
 
-Si bien la deteccion no es perfecta, para un modelo de AI como este es mejor evitar el under fitting y el overfitting. 
+While the detection is not perfect, for an AI model like this it is best to avoid underfitting and overfitting.
 
-El codigo completo de este IoT device es el siguiente.
+The full code for this IoT device is as follows.
 
 [**AI EXERCISE TRACKER**](./AI%20Exercise%20Tracker/Armic_EdgeImpulse_MQTT.ino)
 
@@ -141,23 +140,23 @@ Arm Digital Driver Diagram:
 
 <img src="./Images/armdriver.png" width="70%">
 
-El Arm Digital Driver se realizo de igual forma con una board ESP32 y relevadores mecanicos. Ya que nuestro brazo funciona mediante motores DC.
+The Arm Digital Driver was made in the same way with an ESP32 board and mechanical relays, since our arm works with DC motors.
 
-El codigo completo de este IoT device es el siguiente.
+The complete code of this IoT device is as follows.
 
 [**ARM DRIVER**](./Robotic%20Arm%20Driver/Armic_Driver_MQTT.ino)
 
 # Coinbase Developer Platform:
 
-Una parte crucial en el proyecto era el poder facilmente realizar interacciones con [**Base**](#base) de forma sencilla a travez de el AI Agent, para lograr esto utilizamos el AgentKit de CDP (Coinbase Developer Platform) compatible con LangGraph Python para lograr esto.
+A crucial part of the project was to be able to easily interact with [**Base**](#base) through the AI ​​Agent, to achieve this we used CDP's AgentKit (Coinbase Developer Platform) compatible with LangGraph Python to achieve this.
 
-El codigo completo del servidor esta en el siguiente enlace:
+The complete server code is at the following link:
 
 [**LLM SERVER**](./LLM%20Server/Armic_Final.ipynb)
 
 ### Setup CDP Credentials:
 
-Antes que nada es necesario configurar las credenciales de CDP en nuestro archivo [.env](./LLM%20Server/envexample) una vez configuradas las credenciales en este archivo podras utilizar el Agent Kit sin problemas, en nuestro caso es importante usar base-mainnet.
+First of all, it is necessary to configure the CDP credentials in our [.env](./LLM%20Server/envexample) file. Once the credentials are configured in this file, you will be able to use the Agent Kit without problems. In our case, it is important to use base-mainnet.
 
     ...
     CDP_API_KEY_NAME=XXXXX
@@ -167,7 +166,7 @@ Antes que nada es necesario configurar las credenciales de CDP en nuestro archiv
 
 ### CDP LangChain Setup:
 
-En el caso del CDP Toolkit solo es necesario usar el siguiente snippet de codigo, el cual nos permite mantener de forma persistente la wallet de los agentes, con el fin de evitar perder assets o control sobre ellos. Ademas para este proyecto en particular mostramos la forma de solo importar ciertas tools del CDP Toolkit con el fin de mejorar las respuestas del agente y evitar que se confunda con ciertos prompts.
+In the case of the CDP Toolkit, it is only necessary to use the following code snippet, which allows us to persistently maintain the agent wallet, in order to avoid losing assets or control over them. In addition, for this particular project, we show how to only import certain tools from the CDP Toolkit in order to improve the agent's responses and avoid confusion with certain prompts.
 
     # Setup Cdp and Wallet:
 
@@ -200,7 +199,7 @@ En el caso del CDP Toolkit solo es necesario usar el siguiente snippet de codigo
 
 ### PreFlight CPD Prompt:
 
-Los modelos de AI pueden llegar a tener ciertas incosistencias al realizar llamadas a las tools en langchain, por lo cual aveces es necesario realizar modificaciones de estas antes de que pasen a la herramienta. En este caso concreto realizamos la modificacion de la tool de transfer asegurarnos que siempre el input fuera un numero entero en forma de **str**.
+AI models can have certain inconsistencies when making calls to tools in the langchain, so it is sometimes necessary to make modifications to them before they are passed to the tool. In this specific case, we made the modification to the transfer tool to ensure that the input was always an integer in the form of **str**.
 
     # Pre flight modificators
     # https://github.com/coinbase/agentkit/tree/master/python/cdp-agentkit-core/cdp_agentkit_core/actions
@@ -221,18 +220,18 @@ Los modelos de AI pueden llegar a tener ciertas incosistencias al realizar llama
 
 ### CDP with Ollama Server:
 
-Una parte importante del proyecto fue lograr que el toolkit funcionara con cualquier Modelo AI Open Source ya que la mayoria de ejemplos realizados en la comunidad se realizan con OpenAI API. Y como muestra de esto, nosotros utilizamos el modelo Open Source de Llama 3.1 para todo este proyecto. Ademas que al correr el modelo localmente evitamos filtraciones de los datos sencibles de los pacientes.
+An important part of the project was to make the toolkit work with any Open Source AI Model, since most examples made in the community are done with the OpenAI API. And as an example of this, we used the Open Source model Llama 3.1 for this entire project. In addition, by running the model locally we avoid leaks of sensitive patient data.
 
     model = ChatOllama(model="llama3.1:8b", keep_alive="1h")
     model_with_tools = model.bind_tools(tools + mod_tools, tool_choice="auto")
 
 # Base:
 
-Como blockchain principal para el proyecto se utilizo Base Mainnet, ya que esta ademas de su velocidad y bajas fees. Nos permitio desplegar nuestro propio ERC20 Token y con el poder realizar la comunicacion con los IoT Devices. Sobre todo AgentKit nos permitio de forma muy rapida y sencilla poder realizar de forma automatizada todas las transferencias a mediante nuestros AI Agents.
+Base Mainnet was used as the main blockchain for the project, as it is fast and has low fees. It allowed us to deploy our own ERC20 Token and to communicate with IoT Devices. Above all, AgentKit allowed us to quickly and easily carry out all transfers automatically using our AI Agents.
 
 [**Web Page**](https://armic.vercel.app)
 
-NOTA: AL no tener el hardware fisico, no podras ver las interacciones IoT fisicamente, sin embargo podras realizar las ejecuciones de trasferencias.
+NOTE: By not having the physical hardware, you will not be able to see the IoT interactions physically, however you will be able to perform the transfer executions.
 
 <img src="./Images/chat.png" width="80%">
 
@@ -246,24 +245,24 @@ Prompt Example:
 
 ### ARM Token:
 
-Nuestro ERC20 Tokens tiene la funcion de servir como utility token para los pacientes y devices IoT. Permtiendo que al realizar transferencias de este token a las wallets de los devices, estos realicen acciones y a los usuarios para recibir recompensas.
+Our ERC20 Tokens serve as a utility token for patients and IoT devices. By transferring this token to the wallets of the devices, they can perform actions and users can receive rewards.
 
 ARM Token Contract: [**CODE**](./Contract/ArmicToken.sol)
 ARM Token Contract Address: https://basescan.org/token/0x7348b50c6301fec2fa1bc4355b3fade2442f5747
 
 ### IoT, Agents and Transactions:
 
-Algo fundamental del proyecto fue poder controlar los devices IoT al realizar transacciones en blockchain y a su vez que los AI Agents pudieran realizar estas transacciones.
+A fundamental aspect of the project was to be able to control IoT devices when carrying out transactions on the blockchain and in turn allow AI Agents to carry out these transactions.
 
 <img src="./Images/biot.png">
 
-1. CDP se activa por medio del AI Agent.
-2. Base Mainnet realiza la transaccion de los tokens desde la cuenta del AgentKit hacia la cuenta del Robotic Arm.
-3. Nuestro Alchemy WebSocket detecta el evento de transferencia y manda la informacion al MQTT Server.
-4. EL MQTT Server recibe la informacion del evento y la manda hacia el device IoT correspondiente a la address.
-5. Finalmente el IoT device recibe la informacion de la accion que debe de realizar.
+1. CDP is activated by the AI ​​Agent.
+2. Base Mainnet performs the token transaction from the AgentKit account to the Robotic Arm account.
+3. Our Alchemy WebSocket detects the transfer event and sends the information to the MQTT Server.
+4. The MQTT Server receives the event information and sends it to the IoT device corresponding to the address.
+5. Finally, the IoT device receives the information about the action it must perform.
 
-Este pipeline de eventos se ve de esta manera en la plataforma.
+This event pipeline looks like this on the platform.
 
 <img src="./Images/iot.png" width="80%">
 

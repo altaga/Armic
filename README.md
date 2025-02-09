@@ -7,6 +7,7 @@ ARMIC is a Platform that fuses advanced robotics, Blockchain and AI Agents to tr
 # Fast Links:
 
 [**Demo Video**](pending...)
+[**Web Page**](https://armic.vercel.app)
 
 **If you're a judge and want to go directly to any category, please click on the following references:**
 
@@ -228,6 +229,10 @@ Una parte importante del proyecto fue lograr que el toolkit funcionara con cualq
 # Base:
 
 Como blockchain principal para el proyecto se utilizo Base Mainnet, ya que esta ademas de su velocidad y bajas fees. Nos permitio desplegar nuestro propio ERC20 Token y con el poder realizar la comunicacion con los IoT Devices. Sobre todo AgentKit nos permitio de forma muy rapida y sencilla poder realizar de forma automatizada todas las transferencias a mediante nuestros AI Agents.
+
+[**Web Page**](https://armic.vercel.app)
+
+NOTA: AL no tener el hardware fisico, no podras ver las interacciones IoT fisicamente, sin embargo podras realizar las ejecuciones de trasferencias.
 
 ### ARM Token:
 

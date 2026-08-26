@@ -1,6 +1,6 @@
 ﻿# Armic
 
-<img src="./Images/Armic Logo.png" alt="Armic logo" width="280">
+<img src="./Images/logo.jpg" alt="Armic logo" width="280">
 
 **ARMIC** — autonomous rehabilitation powered by edge AI and assistive robotics.
 

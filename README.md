@@ -8,18 +8,31 @@ Patient motion is verified at the edge; the UNO Q MCU drives therapy-assist prot
 
 ---
 
+## What makes the motion “industrial” on hobby hardware
+
+MG90 servos + PCA9685 PWM — but motion is shaped by a full **MCU control stack**:
+
+- Analytical **FK / IK** with torque-aware branch selection  
+- **2 mm Cartesian waypoints** + loaded **C-curve (HTL)** planning  
+- **Rate-limited** joints + cubic ease + 7-segment S-curves  
+- Static **gravity torque** model → velocity derating before stall  
+- **Yoshikawa manipulability** + floor FK guards on rehab paths  
+
+Start here: **[docs/control-stack.md](docs/control-stack.md)**
+
+---
+
 ## What this repo is
 
 Documentation and project baseline for the **Arduino UNO Q** build of Armic.
 
-Active firmware work (kinematics, PWM pipeline, rehab exercises, serial protocol) currently lives in the local PlatformIO portable kit and is being ported onto the **UNO Q MCU** (STM32U585 / Arduino core). This repository holds the **product docs, conventions, and BOM** so the contest entry and team stay aligned.
+Active firmware (kinematics, pipeline, protocols, exercises) is being ported onto the **UNO Q MCU**. This repository holds **product docs, math, conventions, and BOM**.
 
 | Area | Status |
 |------|--------|
-| Docs / conventions | **In repo** (`docs/`) |
+| Control docs / conventions | **In repo** |
 | 4-DOF arm firmware brain | **In progress** (UNO Q MCU port) |
 | App Lab dashboard / Edge Impulse | Planned (UNO Q Linux MPU) |
-| Web serial control UI | Planned (Bridge / App Lab) |
 
 ---
 
@@ -27,32 +40,10 @@ Active firmware work (kinematics, PWM pipeline, rehab exercises, serial protocol
 
 | Brain | Role in Armic |
 |--------|----------------|
-| **MCU (STM32U585)** | Real-time arm control: IK, S-curve motion, rehab protocols, PCA9685 PWM, serial / Bridge commands |
-| **MPU (Qualcomm Dragonwing / Debian)** | App Lab UI, Edge Impulse exercise classification, session logging, optional HuggingFace coach |
+| **MCU (STM32U585)** | Real-time arm control: IK, S-curve motion, rehab protocols, PCA9685 PWM |
+| **MPU (Qualcomm Dragonwing / Debian)** | App Lab UI, Edge Impulse exercise classification, session logging |
 
-That split matches the contest dual-brain model: **real-time assist on the MCU**, **AI + UX on Linux**.
-
-**Contest lanes:** Social Impact (measurable rehab) and Robotics (assistive arm).
-
----
-
-## System loop
-
-```
-Patient performs therapy
-        │
-        ▼
-Edge ML (MPU / Edge Impulse) ── verifies exercise / reps
-        │
-        ▼
-App Lab / Bridge ── session command
-        │
-        ▼
-UNO Q MCU ── ArmPipeline + ProtocolRunner ── PCA9685 ── 4-DOF arm
-        │
-        ▼
-Assistive motion + telemetry back to dashboard
-```
+**Contest lanes:** Social Impact & Robotics.
 
 ---
 
@@ -60,25 +51,27 @@ Assistive motion + telemetry back to dashboard
 
 | Doc | Contents |
 |-----|----------|
-| [docs/architecture.md](docs/architecture.md) | Dual-brain layout, firmware modules, data flow |
-| [docs/hardware.md](docs/hardware.md) | Arduino UNO Q + arm BOM, I2C PWM, joint map |
-| [docs/setup.md](docs/setup.md) | Tooling and bring-up checklist |
-| [docs/serial-protocol.md](docs/serial-protocol.md) | Command reference (protocols, exercises, IK) |
-| [docs/kinematics.md](docs/kinematics.md) | Link lengths, joint convention, PWM calibration |
-| [docs/exercises.md](docs/exercises.md) | Locked rehab pose references |
-| [docs/htl-reference.md](docs/htl-reference.md) | Heavy Tucked Lift (loaded C-curve) |
-| [docs/bom.md](docs/bom.md) | Bill of materials |
+| **[control-stack.md](docs/control-stack.md)** | Overview — how layers combine |
+| [architecture.md](docs/architecture.md) | Dual-brain layout, modules, safety |
+| [kinematics.md](docs/kinematics.md) | FK, IK equations, PWM calibration |
+| [motion-planning.md](docs/motion-planning.md) | Planner, S-curves, exercises, protocols |
+| [dynamics.md](docs/dynamics.md) | Torque model, derating, manipulability |
+| [hardware.md](docs/hardware.md) | UNO Q + arm BOM |
+| [setup.md](docs/setup.md) | Bring-up checklist |
+| [serial-protocol.md](docs/serial-protocol.md) | Command reference |
+| [exercises.md](docs/exercises.md) | Locked rehab poses |
+| [htl-reference.md](docs/htl-reference.md) | Heavy Tucked Lift |
+| [bom.md](docs/bom.md) | Bill of materials |
 
-**Locked AI rule:** [`.cursor/rules/arm-rehab-exercises.mdc`](.cursor/rules/arm-rehab-exercises.mdc)
+**AI rule:** [`.cursor/rules/arm-rehab-exercises.mdc`](.cursor/rules/arm-rehab-exercises.mdc)
 
 ---
 
-## Locked conventions (do not invent)
+## Locked conventions
 
-- Stable home: `{90, 90, 95, 90}` (elbow **95°** hold)
+- Stable home: `{90, 90, 95, 90}`
 - Elbow band: **[90°, 180°]** only
 - Tip above floor: FK **Z ≥ ~15 mm**
-- Rehab poses: only the photo-matched sets in `docs/exercises.md`
 
 ---
 

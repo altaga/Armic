@@ -44,9 +44,11 @@ Today’s active work is the **MCU arm brain** (ported from the portable ArmDriv
 | `DeviceState` | Shared angles / payload / gripper / `STATE` telemetry |
 | `Planner` | Path planning (including loaded tuck behavior) |
 | `MotionProfile` | S-curve timing |
-| `Compensators` | Torque / posture adjustments |
+| `Compensators` | Droop + backlash feedforward (twin / future HW enable) |
 
 Update cadence: **~100 Hz** (`dt` ≈ 10 ms) while protocols or the Cartesian pipeline are active.
+
+**Control math (full detail):** [control-stack.md](control-stack.md) · [kinematics.md](kinematics.md) · [motion-planning.md](motion-planning.md) · [dynamics.md](dynamics.md)
 
 ---
 

@@ -112,22 +112,31 @@ Tooling: **Arduino App Lab** and/or **Arduino IDE 2.x** (MCU).
 
 ---
 
-## Hardware & bill of materials
+## Hardware list — and why each part matters
 
-### Core
+Contest build is **Arduino UNO Q + off-the-shelf motion hardware**. Every item below has a job; skip one and the demo fails in a predictable way.
 
-| Item | Notes |
-|------|--------|
-| **Arduino UNO Q** (4 GB) | MCU + MPU |
-| **PCA9685** 16-ch PWM | 50 Hz servos, I2C |
-| **4-DOF arm** (OWI-class) | Base / shoulder / elbow / wrist |
-| **MG90D × 2** | Shoulder + elbow (load-bearing) |
-| **MG90S × 2** | Base + wrist |
-| **Gripper servo** | PCA9685 ch4 |
-| **Servo-rated PSU** | Must handle stall current |
-| **IMU (Qwiic)** | Patient sensing — planned on MPU |
+| # | Hardware | Qty | Why it matters |
+|---|----------|-----|----------------|
+| 1 | **[Arduino UNO Q](https://www.arduino.cc/)** (4 GB) | 1 | **The brain.** MCU (STM32) runs arm firmware in real time; MPU (Linux) runs App Lab, Edge Impulse, and the session UI. Without it there is no dual-brain rehab loop — only a bare servo toy. |
+| 2 | **MPU6886 IMU** (HW688-class 6-axis module) | 1 | **The patient sensor.** Streams accelerometer + gyro at rehab rates (~50 Hz) for Edge Impulse exercise classification (bicep curl, lateral raise, etc.). Without it the system cannot *verify* that the patient actually performed the therapy — only that the arm moved. |
+| 3 | **12 V · 5 A DC supply** | 1 | **The muscle power.** MG90 servos stall around **~650 mA each**; shoulder + elbow under load can pull **>2 A** peaks. A weak USB/5 V rail causes **brown-out, jitter, and random MCU resets**. 12 V → servo rail (via PCA9685 VMOT or buck) keeps motion energetic and stable. |
+| 4 | **PCA9685** 16-ch PWM driver | 1 | **The joint driver.** Generates clean **50 Hz** servo pulses for up to 16 channels over **I2C** — frees the UNO Q MCU from bit-banging PWM. Without it: timing jitter, missed frames, and shaky rehab motion. Drives **ch0–ch4** (base, shoulder, elbow, wrist, gripper). |
+| 5 | **Lozada Dynamics arm** *(or equivalent cheap 4-DOF kit: MG90S servos + DC gearmotors)* | 1 | **The actuator.** Provides the physical degrees of freedom ARMIC assists. **MG90S/MG90D** on joints give proportional rehab motion; **DC motors** (relay-driven on many kits) handle grip/base variants. Our firmware is calibrated for this kinematic chain (L0–L3 link lengths). A random arm without calibration → wrong poses and floor crashes. |
 
-### Servo channel map
+### Wiring sketch
+
+```
+12 V 5 A PSU ──► PCA9685 (VMOT) ──► MG90 servos (ch0–4)
+                    ▲ I2C
+              Arduino UNO Q MCU
+                    │
+              MPU6886 (Qwiic) ── patient limb / wearable
+                    │
+              UNO Q MPU ── Edge Impulse + App Lab
+```
+
+### Servo channel map (PCA9685)
 
 | CH | Joint | Notes |
 |----|-------|--------|

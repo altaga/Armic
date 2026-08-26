@@ -119,21 +119,22 @@ Contest build is **Arduino UNO Q + off-the-shelf motion hardware**. Every item b
 | # | Hardware | Qty | Why it matters |
 |---|----------|-----|----------------|
 | 1 | **[Arduino UNO Q](https://www.arduino.cc/)** (4 GB) | 1 | **The brain.** MCU (STM32) runs arm firmware in real time; MPU (Linux) runs App Lab, Edge Impulse, and the session UI. Without it there is no dual-brain rehab loop — only a bare servo toy. |
-| 2 | **MPU6886 IMU** (HW688-class 6-axis module) | 1 | **The patient sensor.** Streams accelerometer + gyro at rehab rates (~50 Hz) for Edge Impulse exercise classification (bicep curl, lateral raise, etc.). Without it the system cannot *verify* that the patient actually performed the therapy — only that the arm moved. |
-| 3 | **12 V · 5 A DC supply** | 1 | **The muscle power.** MG90 servos stall around **~650 mA each**; shoulder + elbow under load can pull **>2 A** peaks. A weak USB/5 V rail causes **brown-out, jitter, and random MCU resets**. 12 V → servo rail (via PCA9685 VMOT or buck) keeps motion energetic and stable. |
+| 2 | **12 V · 5 A DC supply** | 1 | **Main power input.** Feeds the whole station. Servos under load can pull **>2 A** peaks; you need headroom, not a phone charger. |
+| 3 | **HW-688** DC-DC buck module | 1 | **Stable 5 V rail.** Steps **9–36 V in** (our **12 V** bus) down to **5.0–5.2 V out** for UNO Q logic, PCA9685 VCC, and MG90-friendly servo drive. Without it: sharing USB for power → **brown-out, jitter, MCU resets** when shoulder/elbow stall. |
 | 4 | **PCA9685** 16-ch PWM driver | 1 | **The joint driver.** Generates clean **50 Hz** servo pulses for up to 16 channels over **I2C** — frees the UNO Q MCU from bit-banging PWM. Without it: timing jitter, missed frames, and shaky rehab motion. Drives **ch0–ch4** (base, shoulder, elbow, wrist, gripper). |
 | 5 | **Lozada Dynamics arm** *(or equivalent cheap 4-DOF kit: MG90S servos + DC gearmotors)* | 1 | **The actuator.** Provides the physical degrees of freedom ARMIC assists. **MG90S/MG90D** on joints give proportional rehab motion; **DC motors** (relay-driven on many kits) handle grip/base variants. Our firmware is calibrated for this kinematic chain (L0–L3 link lengths). A random arm without calibration → wrong poses and floor crashes. |
+
+*Patient IMU (Qwiic / Edge Impulse) is planned on the MPU side — separate from the HW-688 power module.*
 
 ### Wiring sketch
 
 ```
-12 V 5 A PSU ──► PCA9685 (VMOT) ──► MG90 servos (ch0–4)
-                    ▲ I2C
-              Arduino UNO Q MCU
-                    │
-              MPU6886 (Qwiic) ── patient limb / wearable
-                    │
-              UNO Q MPU ── Edge Impulse + App Lab
+12 V · 5 A PSU ──┬──► HW-688 buck ──► 5 V rail ──► UNO Q logic · PCA9685 VCC · servo VMOT (5 V-class)
+                 │                              ▲ I2C
+                 │                        Arduino UNO Q MCU
+                 └──► (optional 6 V buck if your servos need >5 V on VMOT — never 12 V direct to MG90)
+
+UNO Q MPU ── Edge Impulse + App Lab (+ patient IMU when added)
 ```
 
 ### Servo channel map (PCA9685)

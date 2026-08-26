@@ -8,11 +8,11 @@ All controller references are **Arduino UNO Q** only.
 
 | Hardware | Why ARMIC needs it | If you skip it |
 |----------|-------------------|----------------|
-| **Arduino UNO Q** | MCU runs arm firmware (IK, rehab, PCA9685); MPU runs App Lab + Edge Impulse | No dual-brain platform, no contest story, no patient ML |
-| **MPU6886 (HW688-class IMU)** | 6-axis motion capture on the **patient** for exercise classification | Arm moves but therapy is never *verified* — no measurable rehab |
-| **12 V · 5 A supply** | Reliable peak current for multiple MG90 under load | Sag, buzz, weak motion, controller resets |
-| **PCA9685** | Stable 50 Hz PWM for 5 servo channels over I2C | Jitter, timing bugs, harsh/non-repeatable motion |
-| **Lozada Dynamics arm** *(or MG90S + DC motor kit)* | Physical 4-DOF plant our kinematics & exercises were built for | Wrong geometry → floor hits, stalls, invalid poses |
+| **Arduino UNO Q** | MCU = arm firmware; MPU = App Lab + Edge Impulse | No platform, no dual-brain story |
+| **12 V · 5 A supply** | Main power with stall current headroom | Sag, weak motion under load |
+| **HW-688 buck module** | **12 V → stable 5 V** for logic + MG90-safe servo rail | Brown-out, jitter, MCU resets on USB/shared power |
+| **PCA9685** | 50 Hz PWM for 5 servo channels over I2C | Timing jitter, harsh motion |
+| **Lozada Dynamics arm** *(or MG90S + DC kit)* | Calibrated 4-DOF mechanism | Wrong poses, floor hits, stalls |
 
 ---
 
@@ -21,35 +21,37 @@ All controller references are **Arduino UNO Q** only.
 | Spec | Detail |
 |------|--------|
 | Board | **Arduino UNO Q** (4 GB) |
-| MCU | STM32U585 (Cortex-M33) — arm firmware, PCA9685, 100 Hz loop |
+| MCU | STM32U585 — arm firmware, PCA9685, 100 Hz loop |
 | MPU | Qualcomm Dragonwing — Debian, App Lab, Edge Impulse |
 | I/O | USB-C, Wi-Fi, BT, UNO headers, **Qwiic** |
 | Tooling | App Lab + Arduino IDE 2.x |
 
 ---
 
-## MPU6886 (patient IMU)
+## Power chain — 12 V PSU + HW-688
+
+### 12 V · 5 A supply
+
+Main entry power. Sized for **multiple servo stall peaks** (~650 mA each). Powers the buck module input — not the servos directly at 12 V.
+
+### HW-688 DC-DC buck (step-down)
 
 | Spec | Detail |
 |------|--------|
-| Part | **MPU6886** (often sold as HW688 / GY-688 breakout) |
-| Bus | I2C / Qwiic to UNO Q |
-| Data | 3-axis accel + 3-axis gyro, ~50 Hz for Edge Impulse |
-| Mount | On patient limb or wearable — **not** on the arm tip |
-| Models | Baseline, Bicepcurl, Lateralraise, Elbowflexion (Edge Impulse) |
+| Type | High-power **buck converter** module |
+| Input | **9 V – 36 V** (typically **12 V** from station PSU) |
+| Output | **5.0 V – 5.2 V** regulated |
+| Feeds | UNO Q logic rail, PCA9685 VCC, PCA9685 VMOT → MG90 servos |
 
-Patient sensing is **independent** from arm joint control (open-loop servos via PWM).
+**Why not wire 12 V straight to servos?** MG90-class servos expect **~4.8–6 V**. 12 V destroys them. **Why not USB only?** Servo stall current drops USB voltage → UNO Q brown-out mid-demo.
 
----
+```
+12 V · 5 A ──► HW-688 ──► 5 V ──► UNO Q · PCA9685 · servos (via VMOT)
+     │              │
+     └──────────────┴── common GND
+```
 
-## Power — 12 V · 5 A
-
-| Rail | Feeds |
-|------|--------|
-| **12 V · 5 A** | Servo bus (via PCA9685 VMOT or 6 V buck — match servo rating) |
-| **USB-C PD** | Arduino UNO Q logic (keep servo current off USB when possible) |
-
-**Why 5 A:** shoulder + elbow can stall together during reach-out or HTL; insufficient amps = energetic failure even with perfect code.
+Check your HW-688 module's **maximum output current** (aim **≥3 A** on 5 V for arm + board).
 
 ---
 
@@ -60,7 +62,7 @@ Patient sensing is **independent** from arm joint control (open-loop servos via 
 | Channels used | **0–4** (base, shoulder, elbow, wrist, gripper) |
 | Frame rate | **50 Hz** |
 | Bus | I2C from UNO Q MCU |
-| Library | Adafruit PWM Servo Driver |
+| Power | **VCC** from 5 V rail; **VMOT** from same 5 V rail (or separate 6 V buck if preferred) |
 
 ### Channel map
 
@@ -83,19 +85,27 @@ Patient sensing is **independent** from arm joint control (open-loop servos via 
 |-----------|-------------|
 | MG90S | Base, wrist, gripper |
 | MG90D | Shoulder, elbow (upgrade if kit ships all MG90S) |
-| DC motors | Optional on kit — driven via relay module, not PCA9685 |
+| DC motors | Optional — relay module, not PCA9685 |
 
-### Link lengths (mm) — calibrated for this repo
+### Link lengths (mm)
 
 | Segment | mm |
 |---------|-----|
 | Floor → base | 60 |
-| L0 (base → shoulder) | 30 |
-| L1 (shoulder → elbow) | 90 |
-| L2 (elbow → wrist) | 70 |
-| L3 (wrist → tool) | 50 |
+| L0 | 30 |
+| L1 | 90 |
+| L2 | 70 |
+| L3 | 50 |
 
-Different arm? Re-measure and update [kinematics.md](kinematics.md).
+---
+
+## Patient sensing (planned — separate from HW-688)
+
+| Item | Role |
+|------|------|
+| Qwiic 6-axis IMU | Patient limb motion → Edge Impulse on **MPU** |
+
+The **HW-688 is power electronics only** — not a sensor. Do not confuse with IMU breakout boards.
 
 ---
 
@@ -105,4 +115,4 @@ Different arm? Re-measure and update [kinematics.md](kinematics.md).
 - Elbow **[90°, 180°]** only
 - Tip FK **Z ≥ 15 mm** above floor
 
-Full BOM table: [bom.md](bom.md)
+Full BOM: [bom.md](bom.md)

@@ -1,18 +1,41 @@
 # Bill of materials — ARMIC (Arduino UNO Q build)
 
-One demo station. All items are **required** unless marked optional.
+One demo station. All items in the **main list** are required unless marked optional.
 
 ---
 
 ## Main hardware list
 
-| # | Item | Qty | Est. role | Why it matters |
-|---|------|-----|-----------|----------------|
-| 1 | **Arduino UNO Q** (4 GB) | 1 | Compute | Dual brain: **MCU** = real-time arm control (100 Hz motion loop, PCA9685, serial/Bridge); **MPU** = Debian + App Lab + Edge Impulse for patient ML and dashboard. **Without UNO Q:** no contest platform, no edge AI, no Bridge — project doesn't exist. |
-| 2 | **MPU6886** 6-axis IMU (HW688-class breakout, Qwiic/I2C) | 1 | Patient sensing | Feeds **acc + gyro @ ~50 Hz** into Edge Impulse models (Baseline / Bicepcurl / Lateralraise / Elbowflexion). Validates that the *patient* did the rep, not just the assist arm. **Without IMU:** rehab is open-loop — no measurable adherence, no ML loop. |
-| 3 | **12 V · 5 A** DC power supply | 1 | Servo power | Servos need **6–7.4 V** at **high peak current** (multiple MG90 stalls). 5 A headroom prevents **voltage sag** → brown-out, buzz, weak throws, UNO Q resets on shared grounds. **Without adequate PSU:** arm looks “dead” under load; HTL and reach-out demos fail. |
-| 4 | **PCA9685** 16-channel PWM driver | 1 | Servo PWM | Hardware-timed **50 Hz** pulses on I2C; drives **5 channels** (4 joints + gripper). MCU sends angle ticks, not raw timing loops. **Without PCA9685:** jittery motion, CPU starvation, unreliable rehab timing. |
-| 5 | **Lozada Dynamics** 4-DOF arm *(or OWI-class kit: MG90S + DC motors)* | 1 | Mechanism | **MG90S** on lighter joints (base, wrist); **MG90D** recommended on shoulder/elbow; **DC motors** on some kits via relay module for claw/base. Matches our **link lengths & joint conventions**. **Without this arm (or equivalent calibrated kit):** IK, exercises, and HTL poses don't match physics — tips hit floor or servos stall. |
+| # | Item | Qty | Why it matters |
+|---|------|-----|----------------|
+| 1 | **Arduino UNO Q** (4 GB) | 1 | **Dual brain:** MCU = real-time arm (100 Hz, PCA9685, protocols); MPU = App Lab + Edge Impulse. **Without it:** project doesn't exist. |
+| 2 | **12 V · 5 A** DC power supply | 1 | **Main input.** Multiple MG90 servos can draw **>2 A** at stall. You need a real bench/barrel supply — not USB-only. **Without it:** weak motion, voltage sag under load. |
+| 3 | **HW-688** DC-DC buck (step-down) | 1 | **Stable 5 V rail.** Converts **9–36 V in** (typically **12 V** from the PSU above) to **5.0–5.2 V out** for UNO Q logic, PCA9685, and MG90-class servos (4.8–6 V range). High-efficiency switching — cooler and steadier than a linear regulator at arm currents. **Without it:** powering servos from USB/unregulated taps → **brown-out, buzz, UNO Q resets** when shoulder/elbow load spikes. |
+| 4 | **PCA9685** 16-channel PWM driver | 1 | Hardware **50 Hz** servo timing over I2C (ch0–4 = joints + gripper). **Without it:** jittery PWM, CPU load, bad rehab timing. |
+| 5 | **Lozada Dynamics** 4-DOF arm *(or OWI-class: MG90S + DC motors)* | 1 | Physical plant calibrated in firmware (link lengths, poses). **Without it / wrong kit:** IK and exercises don't match reality. |
+
+---
+
+## HW-688 — power module detail
+
+| Spec | Typical value |
+|------|----------------|
+| Type | High-power **DC-DC buck** (step-down) |
+| Input | **9 V – 36 V** (we use **12 V** from the 5 A PSU) |
+| Output | **5.0 V – 5.2 V** regulated |
+| Role | Feeds **logic + servo bus** at a voltage MG90 servos tolerate |
+
+**Do not** feed **12 V directly** to MG90 servos (rated ~4.8–6 V). The HW-688 (or a 6 V buck if you prefer) sits between the high-voltage supply and the load.
+
+Suggested tree:
+
+```
+12 V · 5 A ──► HW-688 ──► 5 V ──► UNO Q (logic) + PCA9685 VCC + PCA9685 VMOT
+                │
+                └── common GND with PSU and UNO Q
+```
+
+USB-C can still power UNO Q for **development**, but for **demo / load testing** use the HW-688 rail so servo current doesn't starve the board.
 
 ---
 
@@ -21,9 +44,9 @@ One demo station. All items are **required** unless marked optional.
 | Item | Qty | Notes |
 |------|-----|--------|
 | MG90S micro servo | 2–4 | Base, wrist, gripper (kit-dependent) |
-| MG90D (upgrade) | 2 | Shoulder + elbow — **strongly recommended** for gravity loads |
-| DC gearmotor | 0–2 | Some kits use DC + relay instead of servo on one axis |
-| 8-ch relay module | 0–1 | If kit uses DC motors (legacy Armic driver path) |
+| MG90D (upgrade) | 2 | Shoulder + elbow — recommended for gravity |
+| DC gearmotor | 0–2 | Some kits — relay-driven, not PCA9685 |
+| 8-ch relay module | 0–1 | For DC motor axes on cheap kits |
 | Gripper / claw | 1 | PCA9685 **ch4** |
 
 ---
@@ -32,20 +55,10 @@ One demo station. All items are **required** unless marked optional.
 
 | Item | Qty | Notes |
 |------|-----|--------|
-| Qwiic / Dupont cable | — | UNO Q ↔ PCA9685 I2C; UNO Q ↔ MPU6886 |
-| USB-C cable + PD adapter | 1 | UNO Q logic power (separate from 12 V servo rail recommended) |
-| Common ground | — | PSU GND ↔ PCA9685 GND ↔ UNO Q GND |
-| Optional buck (12 V → 6 V) | 0–1 | If PCA9685 VMOT needs regulated 6 V instead of full 12 V (check servo rating) |
-
----
-
-## Software (no BOM cost)
-
-| Item | Role |
-|------|------|
-| Arduino App Lab / IDE 2.x | UNO Q development |
-| Edge Impulse | Train/deploy patient exercise model on MPU |
-| ARMIC firmware + docs | Arm algorithms, rehab protocols |
+| Qwiic / Dupont cable | — | UNO Q ↔ PCA9685 I2C |
+| USB-C cable + PD adapter | 1 | UNO Q (dev / backup logic power) |
+| **Common ground** | — | PSU ↔ HW-688 ↔ PCA9685 ↔ UNO Q |
+| Patient IMU (Qwiic) | 0–1 | **Optional / planned** — Edge Impulse on MPU, not part of HW-688 |
 
 ---
 
@@ -55,17 +68,28 @@ One demo station. All items are **required** unless marked optional.
 |------|---------|
 | MG90 idle | ~100–150 mA each |
 | MG90 stall | ~650 mA each |
-| **Worst case** (2 joints stall) | ~1.3 A + others idle ≈ **2 A+** |
-| **Recommended PSU** | **12 V · 5 A** (margin for inrush + UNO Q noise immunity) |
+| **Two joints stall** | ~1.3 A+ |
+| **Recommended input PSU** | **12 V · 5 A** |
+| **HW-688 output** | Must sustain **≥3 A** on 5 V rail if spec allows (check module rating) |
+
+---
+
+## Software (no BOM cost)
+
+| Item | Role |
+|------|------|
+| Arduino App Lab / IDE 2.x | UNO Q development |
+| Edge Impulse | Patient exercise ML (MPU) |
+| ARMIC firmware + docs | Arm algorithms |
 
 ---
 
 ## Alternatives
 
-| Spec item | Acceptable substitute |
-|-----------|------------------------|
-| Arm | Any **4-DOF** kit with MG90-class servos + known link lengths — **re-calibrate** PWM + kinematics |
-| IMU | Any **6-axis** Qwiic IMU with Edge Impulse support — retrain model |
-| PSU | 12 V · **≥5 A** regulated bench supply; do **not** use USB-only for servos |
+| Item | Substitute |
+|------|------------|
+| HW-688 | Any **12 V → 5 V** buck **≥3 A** (LM2596 class minimum; prefer named high-current module) |
+| Arm | 4-DOF MG90 kit — **re-calibrate** kinematics + PWM |
+| PSU | **12 V · ≥5 A** regulated |
 
-Update this file when the UNO Q port locks I2C pins and exact Lozada Dynamics SKU measurements.
+Update when UNO Q I2C pins and exact Lozada Dynamics measurements are frozen.

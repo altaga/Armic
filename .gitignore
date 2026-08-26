@@ -1,0 +1,47 @@
+﻿# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+**/creds.h
+**/wallet_data.txt
+*.pem
+*.key
+
+# Local backups
+backup/
+*-backup/
+Armic-backup/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+build/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Arduino / build artifacts
+*.elf
+*.hex
+*.bin
+.pio/
+.arduino/
+
+# Logs
+*.log

@@ -9,8 +9,9 @@ All controller references are **Arduino UNO Q** only.
 | Hardware | Why ARMIC needs it | If you skip it |
 |----------|-------------------|----------------|
 | **Arduino UNO Q** | MCU = arm firmware; MPU = App Lab + Edge Impulse | No platform, no dual-brain story |
-| **12 V · 5 A supply** | Main power with stall current headroom | Sag, weak motion under load |
-| **HW-688 buck module** | **12 V → stable 5 V** for logic + MG90-safe servo rail | Brown-out, jitter, MCU resets on USB/shared power |
+| **12 V · 5 A barrel adapter** | Laptop-style brick + **5.5×2.1 mm** plug | Sag, weak motion under load |
+| **Barrel → screw terminal** | Safe wiring from jack to HW-688 | Loose power, demo failures |
+| **HW-688 buck module** | **12 V → stable 5 V** for logic + MG90-safe rail | Brown-out, jitter, MCU resets |
 | **PCA9685** | 50 Hz PWM for 5 servo channels over I2C | Timing jitter, harsh motion |
 | **Lozada Dynamics arm** *(or MG90S + DC kit)* | Calibrated 4-DOF mechanism | Wrong poses, floor hits, stalls |
 
@@ -28,11 +29,25 @@ All controller references are **Arduino UNO Q** only.
 
 ---
 
-## Power chain — 12 V PSU + HW-688
+## Power chain — 12 V brick + terminal adapter + HW-688
 
-### 12 V · 5 A supply
+### 12 V · 5 A DC adapter (laptop-style)
 
-Main entry power. Sized for **multiple servo stall peaks** (~650 mA each). Powers the buck module input — not the servos directly at 12 V.
+| Spec | Detail |
+|------|--------|
+| Form | **Barrel-jack brick** (same idea as a laptop power supply) |
+| Output | **12 V DC · 5 A** (60 W class) |
+| Connector | **5.5 mm OD × 2.1 mm ID** barrel plug (center-positive — verify on your brick label) |
+
+Main entry power. Sized for **multiple servo stall peaks** (~650 mA each). This feeds the HW-688 — **not** the servos at 12 V.
+
+### 5.5 mm × 2.1 mm → screw terminal adapter
+
+| Spec | Detail |
+|------|--------|
+| Type | **DC barrel socket → screw terminals** |
+| Purpose | Plug in the brick; land **+12 V** and **GND** on a terminal block for bench wiring |
+| Why | Solid screw connections to HW-688 and ground bus — no fragile alligator clips during arm motion |
 
 ### HW-688 DC-DC buck (step-down)
 
@@ -46,9 +61,13 @@ Main entry power. Sized for **multiple servo stall peaks** (~650 mA each). Power
 **Why not wire 12 V straight to servos?** MG90-class servos expect **~4.8–6 V**. 12 V destroys them. **Why not USB only?** Servo stall current drops USB voltage → UNO Q brown-out mid-demo.
 
 ```
-12 V · 5 A ──► HW-688 ──► 5 V ──► UNO Q · PCA9685 · servos (via VMOT)
-     │              │
-     └──────────────┴── common GND
+12 V · 5 A brick (5.5×2.1 mm barrel)
+        │
+        ▼
+Screw terminal adapter (+ / −)
+        │
+        ├──► HW-688 ──► 5 V ──► UNO Q · PCA9685 · servos (VMOT)
+        └──► common GND
 ```
 
 Check your HW-688 module's **maximum output current** (aim **≥3 A** on 5 V for arm + board).

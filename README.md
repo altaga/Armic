@@ -22,6 +22,12 @@ Rehabilitation is prescribed at home — bicep curls, lateral raises, elbow flex
 
 We are biomedical engineers who have spent years building health IoT on Hackster — [HealthSphere](https://www.hackster.io/308917/healthsphere-4e0430) (Hackster Impact Prize), [AI cardiac detection](https://www.hackster.io/Altaga/ai-detection-of-cardiac-abnormalities-2ead56) (Best Overall), [AgroNordic](https://www.hackster.io/Edoliver/agronordic-69949d) and [AgroLoRa](https://www.hackster.io/Edoliver/agrolora-1c5452) (sustainability prizes). ARMIC is where that thread lands on **programmable rehabilitation**: not a $50k lab robot, but a **UNO Q on a kitchen table** with a hobby arm kit, a wearable, and software that behaves like industrial motion control.
 
+| Arduino UNO Q on the bench | 4-DOF arm — real hardware |
+|---|---|
+| <img src="./Images/Arduino.jpg" alt="Real Arduino UNO Q rehab station on the workbench" width="520"> | <img src="./Images/Arm.png" alt="Real 4-DOF MG90 arm used in ARMIC" width="520"> |
+
+*Actual build photos — not a render.*
+
 This is not medical advice. It is a **proof-of-concept** for the Arduino UNO Q contest — but we built it the way we build contest winners: real firmware, real closed loop, real bench time.
 
 ### Problem
@@ -29,6 +35,12 @@ This is not medical advice. It is a **proof-of-concept** for the Arduino UNO Q c
 > 📌 **Narrative example, not a real patient.**
 
 Maria had a stroke last March. Her doctor prescribed **12 weeks** of daily home PT — bicep curls, lateral raises, and elbow flexion, **3 sets per day**. Week 1: perfect attendance. Week 3: form uncertainty, clinic booked **10 days** out. Week 5: stopped tracking — no feedback loop. Week 8: inconclusive follow-up. *"Just keep going."*
+
+<p align="center">
+  <img src="./Images/problem-home-pt-gap.png" alt="Illustration — Maria vignette: older woman alone at home with physical therapy homework, uncertain form, long wait for clinic follow-up" width="720">
+</p>
+
+*Illustration — **Maria** design vignette only (older woman). Not a real patient or clinical photograph.*
 
 Maria is not an edge case. The gap is systemic:
 
@@ -76,22 +88,20 @@ The arm is not waving blindly. **Three smooth reps · hold at peak · return to 
 
 ### Connection Diagram
 
-ARMIC is a **dual-brain** system. That is not marketing — it is the only architecture that works on a UNO Q:
+ARMIC is a **dual-brain** system. That is not marketing — it is the only architecture that works on a UNO Q. Every part is off-the-shelf; no custom machining; target **~20 minutes** for a workshop build. Power runs **12 V brick → HW-688 buck → 5 V rail** to UNO Q logic, the PCA9685, and five MG90-class servos — USB cannot drive servos under load. The PCA9685 sits on **I2C (Wire2)** at address `0x40`, **OE pin 17**, channels **0 Base · 1 Shoulder · 2 Elbow · 3 Wrist · 4 Gripper**.
 
 - **MCU (STM32U585)** owns motion — IK, planner, PWM, limits, protocols, E-STOP at **100 Hz**.
 - **MPU (Linux App Lab)** owns commands, telemetry, LLM, and MQTT — not real-time PWM.
 - **Wearable / AI Node** publishes `armic/wearable/v1/*`; **`rep_end`** is authoritative for rep count.
 - **Browser** is UI only — calibration gate, route cards, agent chat.
 
-**Invariant:** If Python dies, firmware watchdog + hold behavior must keep the arm safe. We enforced that in code, not in prompt text.
+If Python dies, firmware watchdog + hold behavior must keep the arm safe. We enforced that in code, not in prompt text.
 
 <p align="center">
   <a href="./Images/Armic_bb.png"><img src="./Images/Armic_bb.png" alt="ARMIC connection schematic — UNO Q, PCA9685, HW-688 power, and 4-DOF servos" width="960"></a>
 </p>
 
-*Click for full size. Editable source: `Images/Armic.fzz` (Fritzing → Schematic view → Export PNG).*
-
-Every item is off-the-shelf. No custom machining. Target: **~20 minutes** for a workshop build. Power chain: **12 V brick → HW-688 buck → 5 V rail** feeds UNO Q logic, PCA9685, and five MG90-class servos. USB cannot power servos under load. PCA9685 on **I2C (Wire2)**, address `0x40`, **OE pin 17** — ch **0 Base · 1 Shoulder · 2 Elbow · 3 Wrist · 4 Gripper**.
+*Click for full size · source: `Images/Armic.fzz` (Fritzing → Schematic view → Export PNG).*
 
 | The UNO Q bench — dual-brain rehab host | The 4-DOF arm at bicep pose |
 |---|---|
@@ -116,49 +126,25 @@ Every item is off-the-shelf. No custom machining. Target: **~20 minutes** for a 
 - **M5Stack Core2** (optional) **$36** — [M5 Store](https://shop.m5stack.com/products/m5stack-core2-esp32-iot-development-kit) — reference wearable; any Wi-Fi device can use the MQTT contract
 - Dupont / Qwiic cables, breadboard **~$3**
 
+| Reference wearable — M5 Core2 on glove | Edge Impulse → MQTT `armic/wearable/v1/*` |
+|---|---|
+| <img src="./Images/AI Node.png" alt="M5 Core2 reference AI Node mounted on gym glove" width="400"> | Any Wi-Fi device can implement the same contract. Build kit: [armic-ai-node/](Arduino%20Files/armic-ai-node/). HUD lives on the board at **`/wearable-mqtt.html`** (step 6 below). |
+
 ---
 
 ## Step-by-step build
 
-### 1. Wire the bench
+**~20 minutes** from wired bench to closed loop. Each step below matches what you should see on the bench — full checklist in [docs/setup.md](docs/setup.md).
 
-Follow the connection schematic above.
+| **1 · Wire the bench** | **2 · Flash firmware** | **3 · Deploy App Lab** |
+|---|---|---|
+| [Connection schematic](#connection-diagram) · **12 V → HW-688 → 5 V** · PCA9685 ch **0–4**. Logic stays on **5 V** — never 12 V on UNO Q headers. | Flash [`armic-firmware/`](Arduino%20Files/armic-firmware/). Serial **115200**. Boot should park at home: elbow **95°**, claw open. | Deploy [`brick_compose.yaml`](Arduino%20Files/armic-brick/brick_compose.yaml) + [`armic-mpu/`](Arduino%20Files/armic-mpu/). **Pass:** 3/3 containers UP — FastAPI, Qwen, Web UI **:7000**, MQTT **:1883**. |
+| <img src="./Images/HW688 & PCA.png" alt="HW-688 buck and PCA9685 power chain" width="300"> | <img src="./Images/Arduino.jpg" alt="Arduino UNO Q on the rehab bench" width="300"> | <img src="./Images/applab.png" alt="App Lab containers running" width="300"> |
 
-### 2. Flash MCU firmware
-
-Flash [`Arduino Files/armic-firmware/`](Arduino%20Files/armic-firmware/) to the UNO Q. Serial connects at **115200**. On boot you should see home pose: **elbow 95°**, claw open.
-
-### 3. Deploy App Lab on the MPU
-
-Deploy [`brick_compose.yaml`](Arduino%20Files/armic-brick/brick_compose.yaml) + [`armic-mpu/`](Arduino%20Files/armic-mpu/). You get three containers: FastAPI backend, `arduino:llm` (Qwen), static Web UI. The stack exposes **Web UI on port 7000**, **MQTT on 1883**, and Bridge RPC between MCU firmware and the MPU app. Optional AI Node publishes to `armic/wearable/v1/*` — see [armic-ai-node/](Arduino%20Files/armic-ai-node/).
-
-Full bring-up checklist: [docs/setup.md](docs/setup.md).
-
-### 4. Open the Web UI and calibrate
-
-Open **`http://uno-q.local:7000`**. Calibration lives in a single source of truth: [`calibration.json`](Arduino%20Files/armic-brick/calibration.json). **3-phase commit:** stage → verify on MCU → commit to disk. Do not fork per-module copies.
-
-**Motion is gated by default.** `dry_run` stays ON until you press **Enable Motion** in the UI. Leaving dry run requires `invalidateWriteCache()` — otherwise the arm stays limp by design.
-
-### 5. Run your first exercise
-
-From the UI or serial:
-
-```
-exercise bicep
-```
-
-Three reps · cubic ease · hold at peak · return home. Or pick a rehab route card (**light** / **medium** / **heavy**) and press **Execute** — not chat. The LLM never starts rehab motion from conversation alone.
-
-### 6. Connect the wearable and open the MQTT HUD
-
-Point your AI Node at the board's MQTT broker. Open **`/wearable-mqtt.html`** — six topics at **20 Hz**. Rep count comes from **`rep_end`**, not live inference windows.
-
-| Main UI — session dashboard | MQTT wearable HUD |
-|---|---|
-| <img src="./Images/mainUI.png" alt="Main UI dashboard" width="520"> | <img src="./Images/testmqttUI.png" alt="MQTT wearable HUD" width="520"> |
-| **App Lab — 3/3 UP** | **Reference AI Node** |
-| <img src="./Images/applab.png" alt="App Lab containers" width="520"> | <img src="./Images/AI Node.png" alt="Wearable AI Node" width="520"> |
+| **4 · Calibrate** | **5 · First exercise** | **6 · Wearable HUD** |
+|---|---|---|
+| Open **`http://uno-q.local:7000`**. Commit [`calibration.json`](Arduino%20Files/armic-brick/calibration.json) — stage → verify → disk. Press **Enable Motion** to leave `dry_run`. | `exercise bicep` or **Execute** on a route card (**light** / **medium** / **heavy**) — not chat. | Connect wearable ([**Things used**](#things-used-in-this-project) ↑) · open **`/wearable-mqtt.html`** · count **`rep_end`**, not inference. |
+| <img src="./Images/mainUI.png" alt="Main UI — calibration and session control" width="300"> | <img src="./Images/10bicep.gif" alt="Bicep curl — first exercise demo" width="300"> | <img src="./Images/testmqttUI.png" alt="MQTT wearable HUD" width="300"> |
 
 ---
 
@@ -193,6 +179,10 @@ Details: [docs/demos-and-exercises.md](docs/demos-and-exercises.md).
 ## Meet the arm: $40 servos, industrial-grade software
 
 **MG90 hobby servos** on a standard 4-DOF kit — nothing custom machined. ARMIC adds FK/IK, S-curves, floor guards, HTL carries, and photo-matched rehab trajectories so a **~$50 kit moves like lab hardware**.
+
+<p align="center">
+  <img src="./Images/Arm.png" alt="4-DOF MG90 rehabilitation arm — base, shoulder, elbow, wrist, and gripper on ARMIC bench" width="720">
+</p>
 
 Without ARMIC you get stall, jitter, and posture flip on ~$50 hardware. With ARMIC on UNO Q you get FK/IK, micro-step planning, and an **18°/s** therapy cap — **~$40k-class motion behavior** from firmware alone.
 
@@ -279,7 +269,64 @@ Because of the nature of healthcare information, **security and safety are not o
 
 **Proposed improvements:** Hackster submission (docs, BOM, Fritzing, code, demo video) → hardened `dry_run` → live motion gate → clinical pilot vignette (Q4 2026, with ethics review) → open-hardware kit v2 with PCB and tuned linkages (Q2 2027).
 
-**$ARMIC** funds the build — UNO Q stations, arm kits, bench time. It is **not** a patient reward layer. Creator fees route to a rehab hardware fund. Facts: [docs/project-token.md](docs/project-token.md). Contest context: [docs/project.md](docs/project.md).
+Contest context: [docs/project.md](docs/project.md).
+
+---
+
+## Why we launched $ARMIC — making the project real
+
+People ask: *"Why onchain? Why a token? This is a rehab robot."*
+
+Fair question. The **product** is the UNO Q station — edge agent, 5-layer safety, wearable closed loop, calibration SSoT. **$ARMIC** is a separate **project-funding and launch layer**. It funds the build; it is **not** the therapy loop and **not** a patient reward.
+
+**$ARMIC** exists to put more benches in the world: UNO Q boards, arm kits, wearables, and pilot time. Creator fees route **100%** to a rehab hardware fund — not to rep bounties or clinical incentives.
+
+### The wallet we lost — why custody changed
+
+ARMIC did not start with a clean ledger.
+
+On a **prior token launch**, the **hot wallet tied to the LP** was **hacked**. That wallet was how we were supposed to **collect creator commissions** — the buy/sell fees on every trade that were meant to fund hardware, kits, and bench time. Not a theoretical risk. The key that controlled those fee flows was compromised, and we **lost the ability to capture that commission stream**.
+
+Every swap that should have been reinvesting into the build went somewhere else. Block-explorer refreshes at 3 a.m. A community still watching. Hardware bills still on the calendar — but the **fee rail** that was supposed to pay them was gone.
+
+We reported it. We chased traces. We could not rewind the LP fee wallet.
+
+That failure is the tragic part of this story — and it is why **$ARMIC** is structured differently from the first attempt:
+
+- The **LP / fee wallet is not a single hot key on a dev laptop** — **multisig** and custody hardening came **before** this launch.
+- **Mint and freeze authority disabled** on the current contract — no midnight supply surprise.
+- **100% of creator fees** on buys and sells routed to a dedicated **rehab hardware fund** wallet with rules we set **before** liquidity mattered.
+- **No patient rep rewards** wired into the therapy loop — ROM adaptation runs on quality alone; the token funds **builds**, not clinical incentives we are not qualified to run yet.
+
+The parallel to firmware is deliberate. ARMIC parks at **elbow 95°** on E-STOP because gravity hunt on a MG90 is dangerous. We learned the same lesson on the LP: **when the fee wallet breaks, the project starves.**
+
+This Easya launch (**2026-08-30**) is our second public attempt to fund rehabilitation hardware — with the **commission wallet** treated as seriously as the robot itself.
+
+### What the token proves (that a GitHub repo alone cannot)
+
+1. **We can launch** — liquidity, graduated fees, transparent routing to hardware for more stations and kits.
+2. **We can build audience** — [@projectarmic](https://x.com/projectarmic) and demo traction for clinic and partner conversations.
+3. **We failed once and changed** — the **LP hot wallet hack** above is why multisig, disabled mint/freeze, and locked fee routing exist on **this** contract.
+
+### What it is not
+
+- **Not** a rep-quality reward for patients completing therapy.
+- **Not** a substitute for clinical evidence, IRB review, or regulated care.
+- **Not** wired into on-device adaptation — ROM widen/narrow runs on rep quality alone ([agent.md](docs/agent.md)).
+
+Session telemetry (`rep_end`, WebSocket history) is for **measurement and care-team review**. Any future onchain session proofs would be **audit infrastructure**, not pay-for-reps.
+
+### Token facts
+
+- **Network:** Solana SPL
+- **Contract:** `DcTVUogWykX1JeBmTq48Fzj2Lc3Y7zwHQS1CyZ9SHnXf`
+- **Mint / freeze authority:** disabled
+- **Creator fees:** 100% → rehab hardware fund wallet
+- **Launch:** Easya.io Kickstart · **2026-08-30**
+
+Merkle-rooted session records for insurer-grade evidence remain **planned** — separate from token economics and patient-facing incentives.
+
+Full policy and rationale: [docs/project-token.md](docs/project-token.md).
 
 ---
 

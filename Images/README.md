@@ -18,6 +18,14 @@ npm run gifs
 
 Targets: `10bicep`, `11lateral`, `12elbow`, `3htf`, `6orbit`, `8cobra`, `2trans`, `9dumbell`, `0.5claude`.
 
+## Story illustrations (PNG)
+
+README narrative assets — **illustrations only**, not clinical photos:
+
+- `problem-home-pt-gap.png` — Problem vignette (Maria: older woman, isolation, uncertain home PT)
+
+Story Introduction uses **real bench photos** (`Arduino.jpg`, `Arm.png`) — not generated hardware renders.
+
 ## README diagrams (PNG)
 
 Hackster does not render Mermaid — README embeds **`Docs/refs/generated/README-mermaid-N.png`** above each block.

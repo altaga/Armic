@@ -15,7 +15,22 @@ The token proves three things a GitHub repo alone cannot:
 
 1. **We can launch** — liquidity, graduated fees, transparent routing to a **rehab hardware fund** (more UNO Q stations, arms, wearables for pilots).
 2. **We can build audience** — [@projectarmic](https://x.com/projectarmic) and demo traction for clinic and partner conversations.
-3. **We failed and learned** — prior wallet compromise drove multisig and custody hardening before any treasury use.
+3. **We failed and learned** — the prior launch **LP hot wallet was hacked**; we lost the ability to collect buy/sell creator commissions. That drove multisig and custody hardening **before** this fee wallet ever mattered again.
+
+## The wallet we lost
+
+On a **prior token launch**, the **hot wallet tied to the LP** was **hacked**. That wallet controlled our **creator commission stream** — the buy and sell fees on every trade that were supposed to fund kits, boards, and bench time.
+
+When it was compromised, we **lost the ability to capture those commissions**. Swaps kept happening; the fee rail that was meant to reinvest into hardware went elsewhere. We reported it and chased traces. We could not rewind the LP fee wallet.
+
+That is why the current $ARMIC contract:
+
+- Never puts the **LP / fee wallet** on a single hot key on a dev machine — **multisig** and custody discipline **before** launch
+- **Disables** mint and freeze authority
+- Routes **100% of buy/sell creator fees** to a dedicated rehab hardware fund wallet
+- Keeps the **therapy loop off the token** — no rep bounties, no clinical incentives
+
+Same instinct as firmware E-STOP at elbow **95°**: when the fee wallet breaks, fail safe.
 
 ## What it is not
 

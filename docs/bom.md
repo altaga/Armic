@@ -4,26 +4,30 @@ One demo station. All items in the **main list** are required unless marked opti
 
 **Cost summary (USD, Aug 2026):**
 
-| Tier | Items | Approx. total |
-|------|--------|----------------|
-| **Core arm station** | UNO Q + 12 V PSU + HW-688 + PCA9685 + 4-DOF kit + interconnect | **~$237** |
-| **+ Wearable** | M5 Core2 (Edge Impulse classifier → MQTT) | **+$36 → ~$273** |
-| **Hobby baseline** | OWI-class arm kit only (no UNO Q, no agent, no safety stack) | **~$48** |
+| Tier | Items | Total |
+|------|--------|-------|
+| **Core arm station** | UNO Q (4 GB) + 12 V PSU + HW-688 + PCA9685 + MG90 arm kit + interconnect | **$154** |
+| **Core (2 GB UNO Q)** | Same stack with 2 GB RAM UNO Q (**$59**) | **$134** |
+| **+ Wearable** | M5 Core2 (Edge Impulse classifier → MQTT) | **+$36 → $190** |
+| **Hobby baseline** | MG90 arm kit only (no UNO Q, no agent, no safety stack) | **$50** |
 
-The **+$189** over a bare hobby arm buys: dual-brain UNO Q host, 5-layer safety stack, on-device LLM agent, MQTT wearable loop, and calibration SSoT — see the Creativity table in the Hackster story.
+The **+$104** over a bare hobby arm (4 GB UNO Q build) buys: dual-brain UNO Q host, 5-layer safety stack, on-device LLM agent, MQTT wearable loop, and calibration SSoT — see the Creativity table in the Hackster story.
+
+**UNO Q SKUs (Arduino Store):** 2 GB RAM **$59** · 4 GB RAM **$79**. ARMIC recommends **4 GB** for App Lab containers + Qwen 0.8B alongside the broker and Web UI.
 
 ---
 
 ## Main hardware list
 
-| # | Item | Qty | Why it matters |
-|---|------|-----|----------------|
-| 1 | **Arduino UNO Q** (4 GB) | 1 | **Dual brain:** MCU = real-time arm (100 Hz, PCA9685, protocols); MPU = App Lab + Edge Impulse. **Without it:** project doesn't exist. |
-| 2 | **12 V · 5 A DC adapter** (laptop-style barrel) | 1 | **Main input.** Brick-style **12 V DC / 5 A** supply (same connector family as many laptops). Multiple MG90 stalls need **>2 A** — not USB. |
-| 2b | **5.5 mm × 2.1 mm DC → screw terminal adapter** | 1 | Screws the barrel plug into a **+ / − terminal block** so you can wire the **12 V bus** to the HW-688 and ground bus reliably. |
-| 3 | **HW-688** DC-DC buck (step-down) | 1 | **Stable 5 V rail.** **9–36 V in** ← **12 V from terminal adapter** → **5.0–5.2 V out** for UNO Q, PCA9685, MG90 servos. |
-| 4 | **PCA9685** 16-channel PWM driver | 1 | Hardware **50 Hz** servo timing over I2C (ch0–4 = joints + gripper). **Without it:** jittery PWM, CPU load, bad rehab timing. |
-| 5 | **Lozada Dynamics** 4-DOF arm *(or OWI-class: MG90S + DC motors)* | 1 | Physical plant calibrated in firmware (link lengths, poses). **Without it / wrong kit:** IK and exercises don't match reality. |
+| # | Item | Qty | USD | Why it matters |
+|---|------|-----|-----|----------------|
+| 1 | **Arduino UNO Q** (4 GB **$79**; 2 GB **$59**) | 1 | $79 | **Dual brain:** MCU = real-time arm (100 Hz, PCA9685, protocols); MPU = App Lab + Edge Impulse. **4 GB recommended** for the full agent stack. **Without it:** project doesn't exist. |
+| 2 | **12 V · 5 A DC adapter** (laptop-style barrel) | 1 | $12 | **Main input.** Brick-style **12 V DC / 5 A** supply. Multiple MG90 stalls need **>2 A** — not USB. |
+| 2b | **5.5 mm × 2.1 mm DC → screw terminal adapter** | 1 | $2 | Screws the barrel plug into a **+ / − terminal block** for the **12 V bus** to the HW-688 and ground bus. |
+| 3 | **HW-688** DC-DC buck (step-down) | 1 | $4 | **Stable 5 V rail.** **9–36 V in** ← **12 V** → **5.0–5.2 V out** for UNO Q, PCA9685, MG90 servos. |
+| 4 | **PCA9685** 16-channel PWM driver | 1 | $4 | Hardware **50 Hz** servo timing over I2C (ch0–4 = joints + gripper). **Without it:** jittery PWM, CPU load, bad rehab timing. |
+| 5 | **MG90 assembled arm kit** (KUKA-style 4-DOF) | 1 | $50 | Physical plant calibrated in firmware (link lengths, poses). [Mercado Libre MX listing](https://listado.mercadolibre.com.mx/kit-brazo-robotico-armado-servo-mg90s). **Without it / wrong kit:** IK and exercises don't match reality. |
+| — | Dupont / Qwiic cables, heat-shrink, breadboard | — | $3 | UNO Q ↔ PCA9685 I2C + ground bus. |
 
 ---
 

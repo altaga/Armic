@@ -7,8 +7,9 @@
 
 ## Formats
 
-- **Demos:** MP4 (H.264, 560px wide) — replaces former multi‑MB GIFs
-- **Screenshots:** PNG/JPG resized to max 1040px wide
+- **Demos in README:** animated **GIF** (`Images/*.gif`) — GitHub and Hackster strip `<video>` tags; MP4 lives alongside for local/docs use
+- **Demos (local):** MP4 (H.264, 560px wide) in `Images/*.mp4`
+- **Screenshots:** PNG/JPG resized to max 1040px wide (`mainUI.png`, `onlinesimulator.png`, …)
 - **Logo:** `logostroke.png` at 840px (README); app uses 128px copy in `OnlineSimulator/assets/`
 
 ## Restore or re-optimize

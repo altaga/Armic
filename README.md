@@ -1,10 +1,12 @@
 # ARMIC — Autonomous Rehabilitation on Arduino UNO Q
 
-<img src="./Images/logostroke.png" alt="Armic logo with title" width="420">
+<p align="center">
+  <img src="./Images/logostroke.png" alt="Armic logo with title" width="420">
+</p>
 
 > ⚠️ **Proof-of-concept only. Not a medical or diagnostic device.**
 >
-> ARMIC is an engineering prototype built for a robotics contest. It is **not reviewed, cleared, or approved** by any regulatory body for use in clinical care, diagnosis, or treatment of any medical condition. The rehabilitation protocols, agent logic, wearable IMU inferences, and reward mechanisms described in this document are **demonstration examples only**. Do not use this hardware or software on patients or as a substitute for professional medical advice, diagnosis, or treatment. Always consult a licensed physical therapist or physician for any rehabilitation program.
+> ARMIC is an engineering prototype built for a robotics contest. It is **not reviewed, cleared, or approved** by any regulatory body for use in clinical care, diagnosis, or treatment of any medical condition. The rehabilitation protocols, agent logic, and wearable IMU inferences described in this document are **demonstration examples only**. Do not use this hardware or software on patients or as a substitute for professional medical advice, diagnosis, or treatment. Always consult a licensed physical therapist or physician for any rehabilitation program.
 >
 > All "Maria" patient narratives, statistics, and outcomes below are **illustrative examples** (not real-world clinical results) and are used solely to explain the design intent of the system.
 
@@ -20,7 +22,7 @@
 
 | | |
 |---|---|
-| **Hardware** | Arduino UNO Q + PCA9685 + 4-DOF MG90 arm · ~**$237** core BOM |
+| **Hardware** | Arduino UNO Q + PCA9685 + 4-DOF MG90 arm · ~**$154** core BOM (4 GB UNO Q) |
 | **Motion** | 3 rehab exercises · 9 demo protocols · 100 Hz MCU safety |
 | **AI** | Edge Impulse wearable · Qwen 0.8B agent · 4-tool brick |
 | **Interface** | `http://uno-q.local:7000` · MQTT wearable HUD · 20 Hz telemetry |
@@ -33,30 +35,38 @@
 | Story | [Problem](#the-problem-we-built-this-for) · [Session loop](#what-if-therapy-happened-with-you--not-to-you) · [UNO Q](#why-arduino-uno-q-because-its-two-brains-in-one) |
 | Motion | [Rehab GIFs](#rehabilitation-in-motion--the-3-protocols) · [Demo repertoire](#bonus-motion-repertoire--demo-capability-and-calibration-self-check) |
 | Software | [UI screens](#the-full-interface--four-screens-one-board) · [Simulator](#no-board-no-problem--enter-the-online-simulator) · [Agent](#the-agent-inside-qwen35-08b-on-the-uno-q-mpu--why-edge-llm-why-this-model) |
-| Project | [Token](#why-the-reward-layer-matters-and-why-we-launched-a-token-the-honest-story) · [Team](#the-team-behind-armic--biomedical-engineers-not-crypto-bros-heres-the-proof) · [Roadmap](#whats-next--hackster-submission-is-the-milestone-not-the-finish-line) · [Math docs](#deep-dive--for-judges-who-want-the-math) |
+| Project | [Token](#why-we-launched-armic--making-the-project-real-the-honest-story) · [Team](#the-team-behind-armic--biomedical-engineers-not-crypto-bros-heres-the-proof) · [Roadmap](#whats-next--hackster-submission-is-the-milestone-not-the-finish-line) · [Math docs](#deep-dive--for-judges-who-want-the-math) |
 
 ---
 
 ## Things used — Bill of Materials (BOM)
 
-Every item below is off-the-shelf. No custom machining. **Core arm station ~$237 USD** (UNO Q + power + PCA9685 + 4-DOF kit + interconnect). Add **~$36** for the optional M5 Core2 wearable. Full line-item table below.
+Every item below is off-the-shelf. No custom machining. **Core arm station $154 USD** with the **4 GB RAM** UNO Q (**$134** with 2 GB). Add **$36** for the optional M5 Core2 wearable. Total = **sum of line items below**. Full line-item table below.
 
 | # | Component | Qty | Cost (USD) | Where to buy | Why it matters |
 |---|-----------|-----|------------|--------------|----------------|
-| 1 | **Arduino UNO Q** (4 GB eMMC) | 1 | $118.00 | [Arduino Store](https://store.arduino.cc/products/arduino-uno-q) · [Digikey](https://www.digikey.com/en/products/detail/arduino-srl/A000099/21279461) | **Dual brain.** MCU runs 100 Hz arm tick + safety; MPU runs App Lab containers (FastAPI, LLM, Web UI, MQTT broker, Edge Impulse). Project doesn't exist without both in one form factor. |
-| 2 | **12 V · 5 A DC adapter** (laptop-style brick, 5.5 × 2.1 mm) | 1 | $18.00 | [Amazon](https://www.amazon.com/s?k=12V+5A+DC+power+supply+5.5mm+x+2.1mm) · [Adafruit 1526](https://www.adafruit.com/product/1526) | **Main power.** 5× MG90 stalls need ≥2 A at 5 V. USB cannot power servos under load. |
-| 2b | **5.5 mm × 2.1 mm DC barrel → screw terminal adapter** | 1 | $2.00 | [Amazon](https://www.amazon.com/s?k=5.5mm+x+2.1mm+barrel+to+screw+terminal) | Reliable 12 V bus wiring without soldering. |
-| 3 | **HW-688** DC-DC step-down buck (9–36 V in → 5 V 5 A out) | 1 | $6.00 | [Amazon](https://www.amazon.com/s?k=HW-688+DC+DC+buck+5V+5A) · [AliExpress](https://www.aliexpress.com/wholesale?SearchText=hw-688+5a) | Stable 5 V rail for UNO Q logic, PCA9685, and MG90 servos. Replaces 4 separate regulators. |
-| 4 | **PCA9685** 16-channel 12-bit PWM + I2C | 1 | $5.00 | [Adafruit 815](https://www.adafruit.com/product/815) · [Amazon](https://www.amazon.com/s?k=pca9685+16+channel+pwm+servo+driver+i2c) | Hardware 50 Hz servo timing. No jitter, no MCU CPU burn. **ch0–4 = Base · Shoulder · Elbow · Wrist · Gripper.** |
-| 5 | **4-DOF desktop arm kit** (MG90-class, Lozada Dynamics or OWI clone) | 1 | $88.00 | [Lozada Dynamics Shopee PH](https://shopee.ph/search?keyword=lozada%20dynamics%204dof%20arm) · [Amazon 4-DOF MG90 arm](https://www.amazon.com/s?k=4+dof+robot+arm+mg90s+kit) | Mechanical plant. Firmware kinematics are calibrated to LINK_1 = 90 mm / LINK_2 = 110 mm. Swap kit = re-calibrate 4 constants in `calibration.json`. |
-| 6 | **M5Stack Core2** (optional AI Node / wearable) | 0–1 | $36.00 | [M5 Store](https://shop.m5stack.com/products/m5stack-core2-esp32-iot-development-kit) · [DigiKey](https://www.digikey.com/en/products/detail/m5stack-technology-co-ltd/K010/15606850) | Reference **AI Node**: Edge Impulse on-device classifier → 6-topic MQTT to UNO Q. Any Wi-Fi device can implement the same contract — see [armic-ai-node/](Arduino%20Files/armic-ai-node/). |
-| — | Dupont / Qwiic cables, heat-shrink, breadboard | — | $5.00 | Any | UNO Q ↔ PCA9685 I2C + ground bus. |
+| 1 | **Arduino UNO Q** (4 GB RAM; 2 GB **$59**) | 1 | $79 | [Arduino Store](https://store.arduino.cc/products/arduino-uno-q) · [Digikey](https://www.digikey.com/en/products/detail/arduino-srl/A000099/21279461) | **Dual brain.** MCU runs 100 Hz arm tick + safety; MPU runs App Lab containers (FastAPI, LLM, Web UI, MQTT broker, Edge Impulse). **4 GB recommended** for the full agent stack. |
+| 2 | **12 V · 5 A DC adapter** (laptop-style brick, 5.5 × 2.1 mm) | 1 | $12 | [Amazon](https://www.amazon.com/s?k=12V+5A+DC+power+supply+5.5mm+x+2.1mm) · [Adafruit 1526](https://www.adafruit.com/product/1526) | **Main power.** 5× MG90 stalls need ≥2 A at 5 V. USB cannot power servos under load. |
+| 2b | **5.5 mm × 2.1 mm DC barrel → screw terminal adapter** | 1 | $2 | [Amazon](https://www.amazon.com/s?k=5.5mm+x+2.1mm+barrel+to+screw+terminal) | Reliable 12 V bus wiring without soldering. |
+| 3 | **HW-688** DC-DC step-down buck (9–36 V in → 5 V 5 A out) | 1 | $4 | [Amazon](https://www.amazon.com/s?k=HW-688+DC+DC+buck+5V+5A) · [AliExpress](https://www.aliexpress.com/wholesale?SearchText=hw-688+5a) | Stable 5 V rail for UNO Q logic, PCA9685, and MG90 servos. |
+| 4 | **PCA9685** 16-channel 12-bit PWM + I2C | 1 | $4 | [Adafruit 815](https://www.adafruit.com/product/815) · [Amazon](https://www.amazon.com/s?k=pca9685+16+channel+pwm+servo+driver+i2c) | Hardware 50 Hz servo timing. No jitter, no MCU CPU burn. **ch0–4 = Base · Shoulder · Elbow · Wrist · Gripper.** |
+| 5 | **4-DOF desktop arm kit** (MG90-class, assembled) | 1 | $50 | [Mercado Libre MX — Kit Brazo MG90s](https://listado.mercadolibre.com.mx/kit-brazo-robotico-armado-servo-mg90s) · [Amazon 4-DOF MG90 arm](https://www.amazon.com/s?k=4+dof+robot+arm+mg90s+kit) | Mechanical plant (KUKA-style MG90 kit). Firmware kinematics calibrated to LINK_1 = 90 mm / LINK_2 = 110 mm. Swap kit = re-calibrate 4 constants in `calibration.json`. |
+| 6 | **M5Stack Core2** (optional AI Node / wearable) | 0–1 | $36 | [M5 Store](https://shop.m5stack.com/products/m5stack-core2-esp32-iot-development-kit) · [DigiKey](https://www.digikey.com/en/products/detail/m5stack-technology-co-ltd/K010/15606850) | Reference **AI Node**: Edge Impulse on-device classifier → 6-topic MQTT to UNO Q. Any Wi-Fi device can implement the same contract — see [armic-ai-node/](Arduino%20Files/armic-ai-node/). |
+| — | Dupont / Qwiic cables, heat-shrink, breadboard | — | $3 | Any | UNO Q ↔ PCA9685 I2C + ground bus. |
 
 **Full extended BOM** (servo counts, power budget, alternatives): [docs/bom.md](docs/bom.md).
 
-| Editable schematics source (Fritzing — `.fzz` project) | Breadboard photo — full wiring |
-|---|---|
-| **`Images/Armic.fzz`** · open in Fritzing desktop → Export PNG / PCB / SVG → Schematics view | <img src="./Images/Armic_bb.png" alt="Armic breadboard photo — full wiring" width="520"> |
+| Editable schematics source (Fritzing — `.fzz` project) |
+|---|
+| **`Images/Armic.fzz`** · open in Fritzing desktop → Export PNG / PCB / SVG → Schematics view |
+
+### Breadboard wiring — full schematic
+
+<p align="center">
+  <a href="./Images/Armic_bb.png"><img src="./Images/Armic_bb.png" alt="Armic breadboard wiring — Base, Shoulder, Elbow, Wrist, Claw servos to PCA9685, HW-688 power, Arduino UNO Q" width="960"></a>
+</p>
+
+*Click the diagram to open full size.*
 
 ---
 
@@ -105,7 +115,7 @@ flowchart TD
     C["🧠 AI Rehab Agent · UNO Q\nwidens / narrows ROM per set"]
     D["🦾 4-DOF assistive arm\nS-curves · gravity-aware"]
     E["📊 Pose + strain telemetry\n20 samples / second"]
-    F["🔒 Trusted record + reward"]
+    F["🔒 Trusted session record"]
 
     A --> B --> C --> D --> E --> F --> A
 
@@ -123,7 +133,7 @@ flowchart TD
 | **2** | 📡 Wearable | Edge Impulse scores rep quality, ROM, hold time |
 | **3** | 🧠 Agent | 3 strong reps → widen ROM **+5°** · fatigue → narrow + slow |
 | **4** | 🦾 Arm | Photo-matched trajectories · S-curves · gravity-safe home |
-| **5** | 🔒 Record | Telemetry signed · optional reward if quality ≥ **0.70** |
+| **5** | 🔒 Record | Telemetry logged for care teams · ROM and rep quality in session history |
 
 > The arm isn't waving blindly — **3 smooth reps · hold at peak · return to elbow 95° home.** Same shape a PT would prescribe and document.
 
@@ -150,17 +160,14 @@ flowchart TB
   class PCA,ARM,WEAR,USER io
 ```
 
-| Brain on UNO Q | What it does for rehab |
-|---|---|
-| **STM32U585 MCU** | Real-time arm control at 100 Hz. Smooth motion planning, inverse kinematics, PWM to 5 servos. Runs the physical safety layer. |
-| **Linux MPU (App Lab)** | Runs a Python backend + LLM agent + Edge Impulse inference + static browser UI. Three App Lab containers orchestrate a whole session. |
-
-| Connection | Role |
-|------------|------|
-| Wi-Fi | Browser UI at `:7000` |
-| USB-C | Power + serial debug |
-| Qwiic / headers | PCA9685 joint driver |
-| Bridge RPC | MCU↔MPU with safety gate |
+| Layer | Component | Role |
+|-------|-----------|------|
+| **Brain** | **STM32U585 MCU** | Real-time arm control at 100 Hz. Motion planning, inverse kinematics, PWM to 5 servos. Physical safety layer. |
+| **Brain** | **Linux MPU (App Lab)** | Python backend, LLM agent, Edge Impulse inference, static browser UI. Three App Lab containers per session. |
+| **I/O** | Wi-Fi | Browser UI at `:7000` |
+| **I/O** | USB-C | Power + serial debug |
+| **I/O** | Qwiic / headers | PCA9685 joint driver |
+| **I/O** | Bridge RPC | MCU↔MPU with safety gate |
 
 > **Deploy form-factor:** not a $50k lab robot · not a dev-board that needs a PC — **the UNO Q is the whole computer** in Maria's living room.
 
@@ -169,6 +176,10 @@ flowchart TB
 ## Meet the arm: 4 DOF, $40 servos, industrial-grade software
 
 Under the hood: **MG90 hobby servos** on a standard 4-DOF desktop kit — nothing custom machined.
+
+<p align="center">
+  <img src="./Images/Arm.png" alt="4-DOF MG90 rehabilitation arm at calibrated pose" width="560">
+</p>
 
 | Without ARMIC | With ARMIC on UNO Q |
 |---------------|---------------------|
@@ -202,10 +213,15 @@ ARMIC launches with **3 upper-limb protocols** · **3 reps each** · cubic ease 
 
 | 💪 Bicep curl | 🪽 Lateral raise | 🔁 Elbow flexion |
 |---|---|---|
-| Locked shoulder + elbow · wrist **180° → 25°** | Locked shoulder + elbow · wrist tip-out → tip-down | Shoulder horizontal · elbow **95° → 180°** |
-| <video src="./Images/10bicep.mp4" width="280" autoplay loop muted playsinline title="Bicep curl"></video> | <video src="./Images/11lateral.mp4" width="280" autoplay loop muted playsinline title="Lateral raise"></video> | <video src="./Images/12elbow.mp4" width="280" autoplay loop muted playsinline title="Elbow flexion"></video> |
+| <img src="./Images/10bicep.gif" alt="Bicep curl demo" width="280"> | <img src="./Images/11lateral.gif" alt="Lateral raise demo" width="280"> | <img src="./Images/12elbow.gif" alt="Elbow flexion demo" width="280"> |
 
 Exercise IDs: `bicep` · `lateral` · `elbowflex` — waypoints in [docs/exercises.md](docs/exercises.md).
+
+| Protocol | Motion summary |
+|----------|----------------|
+| **Bicep curl** | Locked shoulder + elbow · wrist **180° → 25°** |
+| **Lateral raise** | Locked shoulder + elbow · wrist tip-out → tip-down |
+| **Elbow flexion** | Shoulder horizontal · elbow **95° → 180°** |
 
 ---
 
@@ -222,7 +238,7 @@ These sequences do **double duty**:
 
 | HTL tucked carry | Orbital trace | Cobra strike | Transport pose | Loaded dumbbell hold |
 |---|---|---|---|---|
-| <video src="./Images/3htf.mp4" width="230" autoplay loop muted playsinline title="HTL tucked carry"></video> | <video src="./Images/6orbit.mp4" width="230" autoplay loop muted playsinline title="Orbital IK path"></video> | <video src="./Images/8cobra.mp4" width="230" autoplay loop muted playsinline title="Cobra strike"></video> | <video src="./Images/2trans.mp4" width="230" autoplay loop muted playsinline title="Compact transport"></video> | <video src="./Images/9dumbell.mp4" width="230" autoplay loop muted playsinline title="Loaded dumbbell"></video> |
+| <img src="./Images/3htf.gif" alt="HTL tucked carry demo" width="230"> | <img src="./Images/6orbit.gif" alt="Orbital IK path demo" width="230"> | <img src="./Images/8cobra.gif" alt="Cobra strike demo" width="230"> | <img src="./Images/2trans.gif" alt="Compact transport demo" width="230"> | <img src="./Images/9dumbell.gif" alt="Loaded dumbbell hold demo" width="230"> |
 
 **Build checklist — run after wiring:**
 
@@ -260,9 +276,13 @@ Wearable HUD is live **20 Hz** — you can watch every inference, every rep boun
 
 ## Hardware — off the shelf, wired cleanly
 
-| Power chain: 12 V → HW-688 → 5 V rail | PCA9685 joint driver + Qwiic on UNO Q |
-|---|---|
-| <img src="./Images/HW688 & PCA.png" alt="Power chain HW-688" width="520"> | <img src="./Images/Armic_bb.png" alt="Armic breadboard wiring" width="520"> |
+| Power chain: 12 V → HW-688 → 5 V rail |
+|---|
+| <img src="./Images/HW688 & PCA.png" alt="Power chain HW-688" width="520"> |
+
+| Breadboard wiring — full schematic |
+|---|
+| <p align="center"><a href="./Images/Armic_bb.png"><img src="./Images/Armic_bb.png" alt="Armic breadboard wiring" width="960"></a></p> |
 
 Wiring is intentionally simple — a student in a workshop can replicate it in **~20 minutes**.
 
@@ -289,7 +309,7 @@ flowchart LR
 
 | Item | Detail |
 |------|--------|
-| **Core BOM ~$237** | UNO Q · 12 V brick · barrel adapter · HW-688 · PCA9685 · 4-DOF MG90 kit · interconnect |
+| **Core BOM $154** | 4 GB UNO Q · 12 V brick · barrel adapter · HW-688 · PCA9685 · MG90 arm kit · interconnect |
 | **Full BOM + links** | [docs/bom.md](docs/bom.md) |
 | **Schematic source** | `Images/Armic.fzz` → Fritzing **Schematic view → Export PNG** |
 
@@ -297,7 +317,7 @@ flowchart LR
 
 ## Deploy on Arduino UNO Q — the real system
 
-ARMIC is built to run **on the board**, in a real home or clinic — not as a browser-only demo. The UNO Q is the whole computer: MCU motion + MPU agent + Web UI + MQTT broker, all on one $118 platform.
+ARMIC is built to run **on the board**, in a real home or clinic — not as a browser-only demo. The UNO Q is the whole computer: MCU motion + MPU agent + Web UI + MQTT broker, all on one **$79** (4 GB) platform.
 
 ### What you deploy
 
@@ -341,6 +361,12 @@ Full bring-up: [docs/setup.md](docs/setup.md). Agent/judge spec: [AGENTS.md](AGE
 
 ## No board? No problem — enter the Online Simulator
 
+<p align="center">
+  <a href="https://onlinesimulator.expo.app"><img src="./Images/onlinesimulator.png" alt="ARMIC Online Simulator — digital twin with joint sliders, motion presets, rehab routes, and live FK/IK" width="720"></a>
+</p>
+
+*Click the screenshot to open the live simulator.*
+
 | | |
 |---|---|
 | **→ [Open Online Simulator](https://onlinesimulator.expo.app)** | Same firmware math as hardware — presets · sliders · rehab routes · HTL · orbital · bicep/lateral/elbowflex |
@@ -351,40 +377,61 @@ When you're ready for the full closed loop — real servos, edge LLM, MQTT weara
 
 ---
 
-## The agent inside: Qwen3.5 0.8B on the UNO Q MPU — why edge LLM, why this model
+## The agent inside: Qwen3.5 0.8B on the UNO Q MPU
 
-This is an **edge-first AI agent.** Not a cloud hook. Not a "we'll add GPT-5 one day" future. The agent runs **locally on the UNO Q** via llama.cpp in the `arduino:llm` App Lab container.
+**Edge-first AI** — Qwen runs **locally** on the UNO Q via llama.cpp in the `arduino:llm` container. Not a cloud hook. Not a deferred cloud upgrade.
 
-### Why run an LLM on-device at all?
+| Warming up (~8 s boot) | Ready — 4 tools registered |
+|---|---|
+| <img src="./Images/warmingupagent.png" alt="ARMIC agent warming up — llama.cpp load and Bridge handshake" width="400"> | <img src="./Images/agentready.png" alt="ARMIC agent ready — tool-use registered, telemetry live" width="400"> |
 
-| Reason | Benefit |
-|--------|---------|
-| **Privacy** | Rehab data stays on the table — HIPAA/GDPR-adjacent by default |
-| **Latency** | Adapts *between reps* · 4 tools · 20 Hz bridge |
-| **Resilience** | Router down → arm + agent + safety still run |
-| **Cost at scale** | No per-rep cloud API bill across thousands of patients |
+Deep dive (model matrix, prompt scenarios): [docs/agent.md](docs/agent.md).
 
-### Why Qwen3.5 0.8B specifically? Because the Arduino UNO Q is not a $5,000 server.
+---
 
-| Constraint | UNO Q reality |
-|------------|---------------|
-| SoC | QRB2210-class Linux · **no GPU / NPU** |
-| Storage | ~**4 GB** eMMC |
-| RAM for apps | **Well under 1 GB** free with 3 containers + broker + 20 Hz WS |
-| Coexistence | MCU bridge + watchdog must never starve |
+### Why on-device?
 
-> GPT-4o · Llama-70B · Mixtral **do not fit** — they swap, starve the bridge, and trip the watchdog.
+| | | | |
+|:---:|:---|:---|:---|
+| 🔒 | **Privacy** — data stays on the table | ⚡ | **Latency** — adapts between reps |
+| 🛡️ | **Resilience** — router down, arm still safe | 💰 | **Scale** — no per-rep cloud API bill |
 
-| Model | VRAM / RAM req (FP16 / Q4_K_M) | Disk footprint | Fits UNO Q? | Tool call accuracy on 4-tool rehab set |
-|-------|-------------------------------|----------------|-------------|----------------------------------------|
-| **Qwen3.5 0.8B (our choice)** | ~1.6 GB / **~600 MB** | ~1.8 GB / **~0.5 GB** | ✅ **Yes** with headroom | ~85–90% on structured JSON tool calls |
-| Llama-3.1 8B Instruct | ~16 GB / ~5.5 GB | ~16 GB / ~4.7 GB | ❌ No — RAM + disk both blow the budget | ~95% but irrelevant, doesn't fit |
-| Phi-3 Mini 4K | ~7.5 GB / ~2.7 GB | ~7.5 GB / ~2.4 GB | ❌ No — RAM thrash, eMMC ½ consumed | ~88–92% but too heavy for container coexistence |
-| Gemma 2 2B | ~4 GB / ~1.4 GB | ~4 GB / ~1.2 GB | ⚠️ Tight — shares RAM with broker, starves telemetry | ~82% — no better than Qwen 0.8B for the overhead |
+---
 
-This is why we chose 0.8B. Not "because small models are trendy." Because it's the **largest model that reliably runs 3-container App Lab coexistence with the MQTT broker + Web UI + telemetry stream without OOM-killing the safety layer.**
+### Why Qwen 0.8B? The UNO Q is not a $5,000 server.
 
-### Why we use the LLM "brick" pattern (agent tools, not raw chat)
+```mermaid
+flowchart LR
+  subgraph budget ["UNO Q MPU budget"]
+    SOC["QRB2210 · no GPU"]
+    DISK["~4 GB eMMC"]
+    RAM["<1 GB free for apps"]
+  end
+  subgraph stack ["Must coexist"]
+    LLM["Qwen 0.8B ~600 MB"]
+    PY["FastAPI + agent"]
+    MQTT["Broker + Web UI"]
+    BR["Bridge 20 Hz"]
+  end
+  budget --> stack
+  BR --> MCU["MCU safety · never starve"]
+
+  classDef ok fill:#047857,color:#ffffff,stroke:#6ee7b7,stroke-width:2px
+  class LLM ok
+```
+
+| Model | Q4 RAM | Fits UNO Q? | Verdict |
+|-------|--------|-------------|---------|
+| **Qwen3.5 0.8B** ✅ | **~600 MB** | Yes · headroom for broker + UI | **Our pick** — ~85–90% tool-call accuracy |
+| Llama-3.1 8B | ~5.5 GB | ❌ | RAM + disk blow the budget |
+| Phi-3 Mini 4K | ~2.7 GB | ❌ | Thrashes · half the eMMC gone |
+| Gemma 2 2B | ~1.4 GB | ⚠️ Tight | Starves telemetry · no accuracy win |
+
+> **Bottom line:** 0.8B is the **largest model that keeps App Lab + MQTT + Web UI + 20 Hz bridge alive** without OOM-killing the safety layer. GPT-4o / Llama-70B / Mixtral swap out and trip the watchdog.
+
+---
+
+### 4-tool brick — structured control, not raw joint angles
 
 A rehab session is a **structured control loop** — the LLM never outputs raw joint angles.
 
@@ -430,7 +477,7 @@ We built firmware, backend, calibration, and rehab protocols **on the actual UNO
 
 Two dev loops, same contract: **(A)** agent on the board with skills mounted, or **(B)** agent on your PC via AgentSSH → `uno-q.local`. Contest judges running agents should start at `AGENTS.md`.
 
-<video src="./Images/0.5claude.mp4" width="680" autoplay loop muted playsinline title="Agent coding directly on the Arduino UNO Q via SSH during bench bring-up"></video>
+<img src="./Images/0.5claude.gif" alt="Agent coding directly on the Arduino UNO Q via SSH during bench bring-up" width="680">
 
 > 🔒 **Patient-deploy handoff.** Engineering SSH + cloud CLI keys are for **build/calibration only**. A shipped clinic unit runs **on-device Qwen 0.8B** via llama.cpp → `tools.py` → FastAPI → MCU. Wipe temp API keys and lock SSH before patient handoff.
 
@@ -488,7 +535,7 @@ Each scenario: NL prompt → JSON tool calls → agent answer.
 ]
 ```
 
-✅ **Answer:** ROM 55° → **50°** · speed 18°/s → **12°/s** · no reward (avg 0.32 < 0.70).
+✅ **Answer:** ROM 55° → **50°** · speed 18°/s → **12°/s** · adaptation narrows ROM and slows the next set (avg quality 0.32).
 
 ---
 
@@ -559,7 +606,7 @@ Each scenario: NL prompt → JSON tool calls → agent answer.
 
 ---
 
-**Bottom line:** Edge LLM = **auditable tool-use inside a $118 board** · privacy · zero-cloud autonomy · swappable brick for clinical dashboards.
+**Bottom line:** Edge LLM = **auditable tool-use inside a $79 board** · privacy · zero-cloud autonomy · swappable brick for clinical dashboards.
 
 ---
 

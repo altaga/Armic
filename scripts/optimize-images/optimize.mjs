@@ -19,6 +19,23 @@ const ORIGINALS_DIR = path.join(IMAGES_DIR, 'originals');
 
 const SCREENSHOT_MAX_WIDTH = 1040;
 const GIF_VIDEO_WIDTH = 560;
+/** README embed width — palette GIFs for GitHub/Hackster `<img>` tags. */
+const GIF_README_WIDTH = 400;
+const GIF_README_FPS = 8;
+const GIF_README_COLORS = 96;
+
+/** Subset committed for README (regenerate: npm run gifs). */
+const README_GIF_TARGETS = [
+  '10bicep.gif',
+  '11lateral.gif',
+  '12elbow.gif',
+  '3htf.gif',
+  '6orbit.gif',
+  '8cobra.gif',
+  '2trans.gif',
+  '9dumbell.gif',
+  '0.5claude.gif',
+];
 const LOGO_README_WIDTH = 840;
 const LOGO_APP_SIZE = 128;
 
@@ -167,15 +184,39 @@ async function gifToMp4(name) {
   return `${base}.mp4`;
 }
 
-async function removeWorkingGifs() {
-  for (const name of GIF_TARGETS) {
-    const gifPath = path.join(IMAGES_DIR, name);
-    try {
-      await fs.unlink(gifPath);
-      console.log(`DEL  removed working copy ${name} (original in originals/)`);
-    } catch {
-      /* already removed */
-    }
+/** Palette-optimized GIF from MP4 (or original GIF) for README embeds. */
+async function toOptimizedGif(name) {
+  const base = name.replace(/\.gif$/i, '');
+  const mp4 = path.join(IMAGES_DIR, `${base}.mp4`);
+  const gifOriginal = path.join(ORIGINALS_DIR, name);
+  const output = path.join(IMAGES_DIR, name);
+
+  let input = mp4;
+  try {
+    await fs.access(mp4);
+  } catch {
+    input = gifOriginal;
+  }
+
+  const before = await fileSize(input);
+  const vf = [
+    `fps=${GIF_README_FPS}`,
+    `scale=${GIF_README_WIDTH}:-2:flags=lanczos`,
+    'split[s0][s1]',
+    `[s0]palettegen=max_colors=${GIF_README_COLORS}:stats_mode=diff[p]`,
+    '[s1][p]paletteuse=dither=bayer:bayer_scale=3',
+  ].join(',');
+
+  await execFileAsync(ffmpegPath, ['-y', '-i', input, '-loop', '0', '-vf', vf, output]);
+
+  const after = await fileSize(output);
+  console.log(`GIF  ${name}: ${input.endsWith('.mp4') ? kb(before) : mb(before)} -> ${kb(after)}`);
+}
+
+async function buildReadmeGifs() {
+  console.log('\n--- MP4 -> optimized GIF (README) ---');
+  for (const name of README_GIF_TARGETS) {
+    await toOptimizedGif(name);
   }
 }
 
@@ -193,6 +234,15 @@ async function summarize() {
 async function main() {
   if (!ffmpegPath) throw new Error('ffmpeg-static binary not found');
 
+  const mode = process.argv[2] ?? 'all';
+
+  if (mode === 'gifs') {
+    console.log('Building README GIFs from Images/*.mp4 (fallback: originals/)\n');
+    await buildReadmeGifs();
+    await summarize();
+    return;
+  }
+
   await fs.access(ORIGINALS_DIR);
   console.log(`Using originals: ${ORIGINALS_DIR}\n`);
 
@@ -209,7 +259,7 @@ async function main() {
   for (const name of GIF_TARGETS) {
     await gifToMp4(name);
   }
-  await removeWorkingGifs();
+  await buildReadmeGifs();
   await summarize();
 }
 

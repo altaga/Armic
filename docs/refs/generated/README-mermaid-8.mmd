@@ -1,0 +1,10 @@
+flowchart TB
+  L1["1 dry_run gate"] --> L2["2 watchdog 1500 ms"]
+  L2 --> L3["3 elbow 90-180 deg - tip Z min 15 mm"]
+  L3 --> L4["4 PWM hard limits per channel"]
+  L4 --> L5["5 E-STOP to home 95 deg"]
+
+  classDef layer fill:#1e293b,color:#ffffff,stroke:#64748b,stroke-width:2px
+  classDef estop fill:#991b1b,color:#ffffff,stroke:#fca5a5,stroke-width:2px
+  class L1,L2,L3,L4 layer
+  class L5 estop

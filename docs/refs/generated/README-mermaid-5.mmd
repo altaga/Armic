@@ -1,0 +1,15 @@
+flowchart TD
+  A["1 Wire BOM"]
+  B["2 Flash firmware"]
+  C["3 Deploy App Lab"]
+  D["4 Open Web UI port 7000"]
+  E["5 Calibrate and Enable Motion"]
+  F["6 Run exercise or Execute route"]
+  G["7 MQTT HUD all green"]
+
+  A --> B --> C --> D --> E --> F --> G
+
+  classDef step fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+  classDef done fill:#047857,color:#ffffff,stroke:#6ee7b7,stroke-width:2px
+  class A,B,C,D,E,F step
+  class G done

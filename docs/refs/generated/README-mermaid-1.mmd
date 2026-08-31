@@ -1,0 +1,14 @@
+flowchart TD
+    A["👤 Maria performs therapy"]
+    B["📡 Wearable IMU · Edge Impulse\nbicep · lateral · elbow"]
+    C["🧠 AI Rehab Agent · UNO Q\nwidens / narrows ROM per set"]
+    D["🦾 4-DOF assistive arm\nS-curves · gravity-aware"]
+    E["📊 Pose + strain telemetry\n20 samples / second"]
+    F["🔒 Trusted session record"]
+
+    A --> B --> C --> D --> E --> F --> A
+
+    classDef step fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+    classDef record fill:#5b21b6,color:#ffffff,stroke:#c4b5fd,stroke-width:2px
+    class A,B,C,D,E step
+    class F record

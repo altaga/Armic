@@ -2,35 +2,37 @@
 
 | Folder | Role |
 |--------|------|
-| **`Images/`** (excl. `originals/`) | PNG/JPG for README · MP4 for local/demo reel |
+| **`Images/`** | PNG/JPG screenshots + palette-optimized GIF demos |
 | **`Images/originals/`** | Full-res backup — **local only** (gitignored) |
+| **`Docs/refs/generated/`** | Mermaid → PNG for Hackster / offline README |
 
-## README policy (GitHub / Hackster)
+## README motion (GIF)
 
-- **Use PNG/JPG only** in markdown — `<img>` or `![alt](path)`.
-- **Do not embed `<video>` or `.gif`** in README — GitHub strips video tags; GIFs are not committed to keep repo size down.
-- **MP4 clips** (`Images/*.mp4`) are tracked for local viewing and contest reels — link by filename in [docs/demos-and-exercises.md](../docs/demos-and-exercises.md).
-
-## Tracked screenshots (each used once in README)
-
-| File | Section |
-|------|---------|
-| `logostroke.png` | Header |
-| `Armic_bb.png` | BOM wiring |
-| `Arduino.jpg` · `Arm.png` | Hardware hero |
-| `mainUI.png` · `testmqttUI.png` · `applab.png` · `AI Node.png` | Web UI |
-| `HW688 & PCA.png` | Power chain |
-| `onlinesimulator.png` | Online Simulator |
-| `warmingupagent.png` · `agentready.png` | Edge agent |
-
-## Re-optimize
-
-From repo root, after `Images/originals/` exists locally:
+Regenerate from MP4 (palette, 400px, 8 fps):
 
 ```bash
 cd scripts/optimize-images
 npm install
-npm run optimize
+npm run gifs
 ```
 
-See [`originals/README.md`](originals/README.md).
+Targets: `10bicep`, `11lateral`, `12elbow`, `3htf`, `6orbit`, `8cobra`, `2trans`, `9dumbell`, `0.5claude`.
+
+## README diagrams (PNG)
+
+Hackster does not render Mermaid — README embeds **`Docs/refs/generated/README-mermaid-N.png`** above each block.
+
+```bash
+cd scripts/optimize-images
+npm run render-readme
+```
+
+CI also renders on push via [`.github/workflows/mermaid-to-png.yml`](../.github/workflows/mermaid-to-png.yml).
+
+## Screenshots (PNG/JPG)
+
+Run full optimize (needs `Images/originals/`):
+
+```bash
+npm run optimize
+```

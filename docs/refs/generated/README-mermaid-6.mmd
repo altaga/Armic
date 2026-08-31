@@ -1,0 +1,12 @@
+flowchart TD
+  A["UNO Q MPU budget"]
+  B["QRB2210 - no GPU - 4 GB eMMC - under 1 GB RAM free"]
+  C["Coexist on MPU: Qwen 0.8B, FastAPI, MQTT, Web UI, Bridge 20 Hz"]
+  D["MCU safety layer must never starve"]
+
+  A --> B --> C --> D
+
+  classDef step fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+  classDef ok fill:#047857,color:#ffffff,stroke:#6ee7b7,stroke-width:2px
+  class A,B,C step
+  class D ok

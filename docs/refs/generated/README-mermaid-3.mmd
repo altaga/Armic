@@ -1,0 +1,18 @@
+flowchart LR
+  P12["12 V 5 A brick"] --> HW["HW-688 buck"]
+  HW --> V5["5 V rail"]
+  V5 --> UNO["UNO Q"]
+  V5 --> PCA["PCA9685"]
+  PCA --> S0["ch0 Base"]
+  PCA --> S1["ch1 Shoulder"]
+  PCA --> S2["ch2 Elbow"]
+  PCA --> S3["ch3 Wrist"]
+  PCA --> S4["ch4 Gripper"]
+  UNO -->|I2C Qwiic| PCA
+
+  classDef power fill:#b45309,color:#ffffff,stroke:#fcd34d,stroke-width:2px
+  classDef logic fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+  classDef servo fill:#334155,color:#ffffff,stroke:#94a3b8,stroke-width:2px
+  class P12,HW,V5 power
+  class UNO,PCA logic
+  class S0,S1,S2,S3,S4 servo

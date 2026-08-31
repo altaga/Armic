@@ -1,0 +1,14 @@
+flowchart TB
+  MPU["Linux MPU · App Lab\nFastAPI · Qwen · Web UI · MQTT"]
+  MCU["STM32U585 MCU · 100 Hz\nIK · protocols · E-STOP"]
+  MPU <-->|Bridge RPC + watchdog| MCU
+  MCU --> PCA["PCA9685 I2C"] --> ARM["4-DOF arm + gripper"]
+  WEAR["Wearable / AI Node"] -->|MQTT| MPU
+  USER["Phone / tablet"] -->|:7000| MPU
+
+  classDef mpu fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+  classDef mcu fill:#047857,color:#ffffff,stroke:#6ee7b7,stroke-width:2px
+  classDef io fill:#334155,color:#ffffff,stroke:#94a3b8,stroke-width:2px
+  class MPU mpu
+  class MCU mcu
+  class PCA,ARM,WEAR,USER io

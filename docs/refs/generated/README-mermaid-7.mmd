@@ -1,0 +1,11 @@
+flowchart LR
+  U["Patient / PT chat"] --> Q["Qwen 0.8B"]
+  Q --> T["4 JSON tools"]
+  T --> F["FastAPI route runner"]
+  F --> B["Bridge RPC"]
+  B --> M["MCU · IK · safety"]
+
+  classDef edge fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+  classDef gate fill:#047857,color:#ffffff,stroke:#6ee7b7,stroke-width:2px
+  class Q,T,F edge
+  class M gate

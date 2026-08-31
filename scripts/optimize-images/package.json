@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "optimize": "node optimize.mjs"
+    "optimize": "node optimize.mjs",
+    "gifs": "node optimize.mjs gifs",
+    "render-readme": "node render-readme-mermaid.mjs"
   },
   "dependencies": {
     "ffmpeg-static": "^5.2.0",

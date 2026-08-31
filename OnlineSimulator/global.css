@@ -1,0 +1,72 @@
+/* Ported from Arduino Files/armic-webui/arm-simulator.html — limited web sim theme */
+:root {
+  --accent: #00d4b8;
+  --accent-dim: rgba(0, 212, 184, 0.12);
+  --warn: #e8a030;
+  --err: #e8456a;
+  --ok: #2ecc71;
+  --bg: #0a0c0b;
+  --panel: rgba(14, 16, 15, 0.94);
+  --panel-elevated: rgba(20, 22, 21, 0.98);
+  --line: #252a28;
+  --mut: #7a8480;
+  --text: #dce8e4;
+  --text-dim: #9aa8a2;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root, #__next {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Sidebar scroll */
+#armic-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #252a28 transparent;
+}
+#armic-sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+#armic-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #252a28;
+  border-radius: 4px;
+}
+#armic-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Interactive affordances */
+.armic-btn-default:hover {
+  background: #252528 !important;
+}
+.armic-btn-primary:hover {
+  filter: brightness(1.08);
+}
+.armic-home-btn:hover {
+  background: rgba(126, 200, 227, 0.2) !important;
+  border-color: rgba(126, 200, 227, 0.65) !important;
+}
+.armic-collapse-header:hover {
+  filter: brightness(1.12);
+}
+.armic-route-exec:hover {
+  filter: brightness(1.1);
+}
+
+/* Text inputs on web */
+input, textarea {
+  font-family: inherit;
+}

@@ -1,0 +1,74 @@
+---
+description: ARMIC Mermaid diagrams — uniform styling and GitHub-safe contrast
+globs: "**/*.md"
+alwaysApply: false
+---
+
+# Mermaid diagrams (ARMIC)
+
+All Mermaid in this repo must render readably on **GitHub** (light + dark UI). Canonical examples: `README.md`, `docs/architecture.md`, `docs/overview.md`.
+
+## Required
+
+1. **Explicit text color** on every styled node: `color:#ffffff` on dark fills (never rely on theme-default text).
+2. **`classDef` + `class`** — do not use bare `style node fill:#e3f2fd` pastel fills.
+3. **Flat graphs** — avoid empty subgraph wrappers (`subgraph ROW[" "]`) that add gray columns and wash out labels.
+4. **Details in markdown** — keep edge labels short; put long copy in tables or prose below the diagram.
+5. **End every styled diagram** with the shared palette block (pick roles that fit).
+
+## Forbidden
+
+- Pastel / light-only fills without dark text (`#e3f2fd`, `#fff3cd`, `#f3e5f5`, `#ffcdd2`, …)
+- White or near-white node fills on GitHub (unreadable in dark mode)
+- Emoji-only nodes with no text
+- `%%{init: …}` theme overrides (GitHub support is inconsistent)
+
+## ARMIC palette (copy as needed)
+
+```mermaid
+classDef step fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+classDef record fill:#5b21b6,color:#ffffff,stroke:#c4b5fd,stroke-width:2px
+classDef mcu fill:#047857,color:#ffffff,stroke:#6ee7b7,stroke-width:2px
+classDef io fill:#334155,color:#ffffff,stroke:#94a3b8,stroke-width:2px
+classDef power fill:#b45309,color:#ffffff,stroke:#fcd34d,stroke-width:2px
+classDef layer fill:#1e293b,color:#ffffff,stroke:#64748b,stroke-width:2px
+classDef estop fill:#991b1b,color:#ffffff,stroke:#fca5a5,stroke-width:2px
+```
+
+| Role | classDef | Use for |
+|------|----------|---------|
+| Primary flow | `step` | Session steps, deploy steps, agent loop |
+| Outcome / reward | `record` | Records, rewards, catalog endpoints |
+| MCU / done | `mcu` | STM32 path, success terminus |
+| I/O / hardware | `io` | PCA9685, arm, browser, wearable |
+| Power rail | `power` | 12 V → buck → 5 V |
+| Safety layers | `layer` | dry_run, watchdog, limits |
+| E-STOP | `estop` | Final halt / home |
+
+## Template — linear flow (session loop)
+
+```mermaid
+flowchart TD
+    A["Step one"]
+    B["Step two"]
+    C["Outcome"]
+
+    A --> B --> C --> A
+
+    classDef step fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+    classDef record fill:#5b21b6,color:#ffffff,stroke:#c4b5fd,stroke-width:2px
+    class A,B step
+    class C record
+```
+
+Wrap the block above in a ` ```mermaid ` fence when embedding in markdown files.
+
+## Template — dual brain (UNO Q)
+
+Use **separate nodes**, not a nested subgraph box. MPU = `step`, MCU = `mcu`, peripherals = `io`.
+
+## Before merging doc changes
+
+- [ ] Every node in a styled diagram is assigned a `classDef`
+- [ ] No pastel `style` lines remain
+- [ ] Preview on GitHub (or assume dark mode) — text readable on every box

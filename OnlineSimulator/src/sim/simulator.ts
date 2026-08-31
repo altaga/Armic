@@ -1,12 +1,21 @@
-// ---- Cartesian 6-stage pipeline + simulator state singleton (shared UI + render) ----
+// ---- Cartesian 6-stage pipeline + simulator state (motion from ArmDriverTesting-Portable/webpage) ----
 import {
-  JointsDeg, HOME, PARK, safetyGate, poseDeltaDeg, MPU_SILENCE_TIMEOUT_MS,
+  JointsDeg, HOME, TRANSPORT, safetyGate, poseDeltaDeg, MPU_SILENCE_TIMEOUT_MS,
 } from './safety';
 import {
   PoseXYZ, fkForward, solveIKAnalytical, yoshikawaDerate,
 } from './kinematics';
-import { easeInOutCubic, lerp, sCurveNormalizeJerk, estimatedSCurveDurationMs } from './s_curve';
-import { HTLState, defaultHTLState, nextPhase, PHASE_MS, HTLPhase } from './htl';
+import { easeInOutCubic, lerp } from './s_curve';
+import { HTLState, defaultHTLState } from './htl';
+import {
+  buildJointTween, sampleJointTween, buildMotionQueueViaHome, JointTween,
+  profileKindForRoute, buildProtocolGotoTween,
+} from './motion';
+import {
+  ActiveDemo, TimelineDoneAction, beginAnimatedRoute, applyTimelineDone, tickActiveDemo,
+} from './demos';
+import { PathPlayback, samplePathPlayback, PENDULUM_SETUP } from './playback';
+import { clampSimJoints } from './simKinematics';
 
 export type CartesianStage =
   | 'S1_START_TARGET'
@@ -21,7 +30,7 @@ export type CartesianStage =
 export type RepEvent = {
   id: number;
   kind: 'bicep' | 'lateral' | 'elbowflex';
-  quality: number; // 0..1
+  quality: number;
   romDeg: number;
   atMs: number;
 };
@@ -42,11 +51,20 @@ export type SimulatorState = {
   lastManipDerate: number;
   lastSafetyFlag: string;
   currentRoute: string | null;
-  routeProgress: number; // 0..1
+  routeProgress: number;
   reps: RepEvent[];
   qualitySmoothed: number;
   htl: HTLState;
+  /** @deprecated use jointTween */
   legTimeline: { from: JointsDeg; to: JointsDeg; startedAt: number; durationMs: number } | null;
+  jointTween: JointTween | null;
+  tweenQueue: JointsDeg[];
+  onTimelineDone: TimelineDoneAction | null;
+  activeDemo: ActiveDemo | null;
+  pathPlayback: PathPlayback | null;
+  scriptedHoldUntilMs: number;
+  payloadKg: number;
+  manualPreview: boolean;
 };
 
 const BOOT_MS = Date.now();
@@ -57,8 +75,8 @@ export function createInitialState(): SimulatorState {
     joints: { ...HOME },
     prevJoints: { ...HOME },
     targetPoseXYZ: fkForward({ ...HOME }),
-    tickHz: 50,       // Expo JS can hit 50Hz comfortably; real MCU does 100 Hz
-    tickMs: 20,       // 50 Hz → 20 ms
+    tickHz: 50,
+    tickMs: 20,
     lastTickAtMs: since(),
     lastMpuMessageAtMs: since(),
     dryRun: true,
@@ -74,6 +92,14 @@ export function createInitialState(): SimulatorState {
     qualitySmoothed: 0,
     htl: defaultHTLState(),
     legTimeline: null,
+    jointTween: null,
+    tweenQueue: [],
+    onTimelineDone: null,
+    activeDemo: null,
+    pathPlayback: null,
+    scriptedHoldUntilMs: 0,
+    payloadKg: 0,
+    manualPreview: false,
   };
 }
 
@@ -83,15 +109,114 @@ export type RoutePreset =
   | 'htl' | 'reach-carry' | 'orbital' | 'cobra'
   | 'pendulum' | 'snake' | 'gimme';
 
-const CARTESIAN_STEP_MM = 2; // matches armic-firmware Cartesian step size
+const CARTESIAN_STEP_MM = 2;
 
-export function setTargetXYZ(s: SimulatorState, target: PoseXYZ): SimulatorState {
-  const next = { ...s, targetPoseXYZ: target };
-  return runCartesianPipeline(next);
+function startJointTween(
+  s: SimulatorState,
+  target: JointsDeg,
+  opts?: { durationMs?: number; dps?: number; gotoEasing?: import('./s_curve').GotoEasing },
+): SimulatorState {
+  const resolved = { ...target, gripper: target.gripper ?? s.joints.gripper };
+  const tween = opts?.dps != null
+    ? buildProtocolGotoTween(s.joints, resolved, opts.dps, opts.gotoEasing)
+    : buildJointTween(s.joints, resolved, {
+      profileKind: profileKindForRoute(s.currentRoute),
+      payloadKg: s.payloadKg,
+      manualPreview: s.manualPreview,
+      durationMs: opts?.durationMs,
+    });
+  tween.startedAtMs = since();
+  return {
+    ...s,
+    jointTween: tween,
+    legTimeline: null,
+    lastMpuMessageAtMs: since(),
+  };
 }
 
-export function setJointsDirect(s: SimulatorState, j: JointsDeg): SimulatorState {
+/** Internal protocol goto or S-curve leg */
+export function tweenToJoints(s: SimulatorState, target: JointsDeg, opts?: { durationMs?: number; dps?: number; gotoEasing?: import('./s_curve').GotoEasing }): SimulatorState {
+  return startJointTween(s, { ...target, gripper: target.gripper ?? s.joints.gripper }, opts);
+}
+
+export function queueTweens(s: SimulatorState, queue: JointsDeg[]): SimulatorState {
+  if (queue.length === 0) return s;
+  const [first, ...rest] = queue;
+  return { ...startJointTween(s, first), tweenQueue: rest };
+}
+
+/** Clear in-flight motion and queue home → target (every UI pose / command). */
+export function queueMotionViaHome(s: SimulatorState, target: JointsDeg): SimulatorState {
+  const gripper = s.joints.gripper;
+  const cleared: SimulatorState = {
+    ...s,
+    jointTween: null,
+    tweenQueue: [],
+    activeDemo: null,
+    pathPlayback: null,
+    onTimelineDone: null,
+    scriptedHoldUntilMs: 0,
+    legTimeline: null,
+  };
+  return queueTweens(cleared, buildMotionQueueViaHome(cleared.joints, { ...target, gripper }));
+}
+
+/** Stop any route/demo, then home → target. */
+export function requestMotion(s: SimulatorState, target: JointsDeg): SimulatorState {
+  return queueMotionViaHome(stopSequence(s), target);
+}
+
+/** @deprecated use requestMotion */
+export function tweenToJointsViaHome(s: SimulatorState, target: JointsDeg): SimulatorState {
+  return requestMotion(s, target);
+}
+
+export function setPayloadKg(s: SimulatorState, kg: number): SimulatorState {
+  return { ...s, payloadKg: Math.max(0, kg) };
+}
+
+export function setManualPreview(s: SimulatorState, preview: boolean): SimulatorState {
+  return { ...s, manualPreview: preview };
+}
+
+function finishJointTween(s: SimulatorState, nowMs: number): SimulatorState {
+  let next: SimulatorState = { ...s, jointTween: null, routeProgress: 1 };
+
+  if (next.tweenQueue.length > 0) {
+    const [head, ...tail] = next.tweenQueue;
+    next = startJointTween(next, head);
+    next.tweenQueue = tail;
+    next.routeProgress = 0;
+    return next;
+  }
+
+  if (next.scriptedHoldUntilMs > 0 && nowMs < next.scriptedHoldUntilMs) {
+    return next;
+  }
+
+  if (next.onTimelineDone) {
+    const action = next.onTimelineDone;
+    next.onTimelineDone = null;
+    next = applyTimelineDone(next, action, nowMs, tweenToJoints, queueTweens);
+  }
+
+  return next;
+}
+
+export function setTargetXYZ(s: SimulatorState, target: PoseXYZ): SimulatorState {
+  return runCartesianPipeline({ ...s, targetPoseXYZ: target });
+}
+
+export function setJointsDirect(s: SimulatorState, j: JointsDeg, skipDeltaClamp = false): SimulatorState {
   const fk = fkForward(j);
+  if (skipDeltaClamp) {
+    return {
+      ...s,
+      prevJoints: { ...s.joints },
+      joints: clampSimJoints(j),
+      lastSafetyFlag: 'PASS',
+    };
+  }
   const safety = safetyGate(j, s.prevJoints, fk.z);
   return {
     ...s,
@@ -103,11 +228,10 @@ export function setJointsDirect(s: SimulatorState, j: JointsDeg): SimulatorState
 
 export function setClawPct(s: SimulatorState, pct: number): SimulatorState {
   const clampedPct = Math.max(0, Math.min(100, pct));
-  const joints: JointsDeg = { ...s.joints, gripper: clampedPct };
   return {
     ...s,
     prevJoints: { ...s.joints },
-    joints,
+    joints: { ...s.joints, gripper: clampedPct },
   };
 }
 
@@ -116,29 +240,21 @@ export function setDryRun(s: SimulatorState, dryRun: boolean): SimulatorState {
 }
 
 export function runCartesianPipeline(s: SimulatorState): SimulatorState {
-  // Stage S1 already done via targetPoseXYZ.
   const s1: SimulatorState = { ...s, lastCartesianStage: 'S1_START_TARGET' };
-
-  // S2 FK sanity of PREVIOUS pose — must be over floor
   const fkPrev = fkForward(s1.joints);
-  if (fkPrev.z < 15) {
-    return { ...s1, lastCartesianStage: 'STOP_INVALID' };
-  }
+  if (fkPrev.z < 15) return { ...s1, lastCartesianStage: 'STOP_INVALID' };
   s1.lastCartesianStage = 'S2_FK_SANITY';
 
-  // S3 Analytical IK with dual branch + torque/nn-pick
   const ik = solveIKAnalytical(s1.targetPoseXYZ, s1.joints);
   if (ik.kind === 'OUT_OF_REACH') return { ...s1, lastCartesianStage: 'STOP_INVALID' };
   s1.lastCartesianStage = 'S3_ANALYTICAL_IK';
   s1.lastIKBranch = ik.kind === 'OK' ? ik.branch : null;
   s1.lastTorqueRatio = ik.kind === 'OK' ? ik.torqueRatio : 0;
 
-  // S4 IK self verify (0.5mm)
   if (ik.kind === 'SELF_VERIFY_FAIL') return { ...s1, lastCartesianStage: 'STOP_INVALID' };
   if (ik.kind !== 'OK') return { ...s1, lastCartesianStage: 'STOP_INVALID' };
   s1.lastCartesianStage = 'S4_IK_SELF_VERIFY';
 
-  // S5 2mm step linearize + cubic ease
   const deltaR = Math.hypot(
     ik.joints.base - s1.joints.base,
     ik.joints.shoulder - s1.joints.shoulder,
@@ -154,13 +270,9 @@ export function runCartesianPipeline(s: SimulatorState): SimulatorState {
     gripper: s1.joints.gripper,
   };
   s1.lastCartesianStage = 'S5_STEP_EASE';
-
-  // S6 manipulability derate (velocity throttle for display / timeline stretch)
-  const derate = yoshikawaDerate(eased);
-  s1.lastManipDerate = derate;
+  s1.lastManipDerate = yoshikawaDerate(eased);
   s1.lastCartesianStage = 'S6_MANIP_DERATE';
 
-  // Finally: safety gate → apply tick
   const fkNew = fkForward(eased);
   const safety = safetyGate(eased, s1.prevJoints, fkNew.z);
   return {
@@ -173,124 +285,100 @@ export function runCartesianPipeline(s: SimulatorState): SimulatorState {
 }
 
 export function tick(s: SimulatorState, nowMs = since()): SimulatorState {
-  // Watchdog: MPU silence → 1.5 s, return home safe
   const mpuSilentFor = nowMs - s.lastMpuMessageAtMs;
+  const dtMs = Math.max(1, nowMs - s.lastTickAtMs);
   let next = { ...s };
+
   if (mpuSilentFor > MPU_SILENCE_TIMEOUT_MS) {
     next.mpuAlive = false;
     next = setJointsDirect(next, { ...HOME });
     next.lastSafetyFlag = 'WATCHDOG_HALT';
+    next.jointTween = null;
     next.legTimeline = null;
-    next.htl.phase = 'IDLE';
+    next.tweenQueue = [];
+    next.activeDemo = null;
+    next.pathPlayback = null;
   } else {
     next.mpuAlive = true;
   }
 
-  // Active rehab leg timeline playback (trajectory between two poses)
-  if (next.legTimeline) {
-    const { from, to, startedAt, durationMs } = next.legTimeline;
-    let tNorm = (nowMs - startedAt) / durationMs;
-    tNorm = Math.max(0, Math.min(1, tNorm));
-    const jerkP = sCurveNormalizeJerk(1, 18, 100, 400, tNorm);
-    const mixed: JointsDeg = {
-      base: lerp(from.base, to.base, jerkP),
-      shoulder: lerp(from.shoulder, to.shoulder, jerkP),
-      elbow: lerp(from.elbow, to.elbow, jerkP),
-      wrist: lerp(from.wrist, to.wrist, jerkP),
-      gripper: lerp(from.gripper, to.gripper, jerkP),
-    };
-    next = setJointsDirect(next, mixed);
-    next.routeProgress = jerkP;
-    if (tNorm >= 1) next.legTimeline = null;
+  if (!next.jointTween && next.scriptedHoldUntilMs > nowMs && next.currentRoute === 'pendulum') {
+    next = setJointsDirect(next, {
+      ...PENDULUM_SETUP,
+      gripper: next.joints.gripper,
+    }, true);
   }
 
-  // HTL FSM tick
-  next.htl = tickHTL(next.htl, nowMs, next);
-  // When HTL carries, move target joints to tucked home 95 for carry → apply
-  if (next.htl.phase === 'CARRY' || next.htl.phase === 'HOME_95') {
-    const tucked: JointsDeg = {
-      base: s.htl.homePose.base,
-      shoulder: 110,
-      elbow: 95,
-      wrist: s.htl.homePose.wrist,
-      gripper: s.htl.gripperClosed ? 10 : 60,
-    };
-    const t = easeInOutCubic(Math.min(1, (nowMs - next.htl.startedAtMs) / next.htl.phaseDurationMs || 1));
-    const mixed = {
-      base: lerp(next.joints.base, tucked.base, t),
-      shoulder: lerp(next.joints.shoulder, tucked.shoulder, t),
-      elbow: lerp(next.joints.elbow, tucked.elbow, t),
-      wrist: lerp(next.joints.wrist, tucked.wrist, t),
-      gripper: lerp(next.joints.gripper, tucked.gripper, t),
-    };
+  if (!next.jointTween && next.scriptedHoldUntilMs > 0 && nowMs >= next.scriptedHoldUntilMs && next.onTimelineDone) {
+    const action = next.onTimelineDone;
+    next.scriptedHoldUntilMs = 0;
+    next.onTimelineDone = null;
+    next = applyTimelineDone(next, action, nowMs, tweenToJoints, queueTweens);
+  }
+
+  if (next.jointTween) {
+    const tween = next.jointTween;
+    const elapsed = (nowMs - tween.startedAtMs) / 1000;
+    const mixed = sampleJointTween(tween, elapsed, next.joints.gripper);
     next = setJointsDirect(next, mixed);
+    next.routeProgress = Math.min(1, elapsed / tween.durationSec);
+    if (elapsed >= tween.durationSec) {
+      next = finishJointTween(next, nowMs);
+    }
+  }
+
+  if (next.pathPlayback && !next.jointTween) {
+    const pb = next.pathPlayback;
+    const joints = samplePathPlayback(pb, nowMs);
+    next = setJointsDirect(next, joints, true);
+    next.routeProgress = Math.min(1, (nowMs - pb.startedAtMs) / Math.max(1, pb.totalMs));
+    if (nowMs - pb.startedAtMs >= pb.totalMs) {
+      next.pathPlayback = null;
+      next.currentRoute = null;
+      next.routeProgress = 1;
+    }
+  }
+
+  if (next.activeDemo && !next.jointTween && !next.pathPlayback) {
+    const demoOut = tickActiveDemo(next, dtMs, nowMs);
+    if (demoOut) {
+      next = setJointsDirect(next, demoOut.joints, true);
+      next.activeDemo = demoOut.next;
+      next.routeProgress = demoOut.routeProgress;
+      if (demoOut.finishedGimme) {
+        next.currentRoute = null;
+        next = queueTweens(next, buildMotionQueueViaHome(next.joints, HOME));
+      }
+    }
   }
 
   next.lastTickAtMs = nowMs;
   return next;
 }
 
-function tickHTL(h: HTLState, nowMs: number, _s: SimulatorState): HTLState {
-  if (h.phase === 'IDLE' || h.phase === 'E_STOP') return h;
-  const elapsed = nowMs - h.startedAtMs;
-  h.phaseProgress = Math.max(0, Math.min(1, elapsed / Math.max(1, h.phaseDurationMs)));
-  if (elapsed > h.phaseDurationMs) {
-    const nextP: HTLPhase = nextPhase(h.phase as any);
-    if (nextP === 'FOLD_IN') h.gripperClosed = true;
-    if (nextP === 'RELEASE') h.gripperClosed = false;
-    if (nextP === 'IDLE') {
-      return { ...h, phase: 'IDLE', startedAtMs: 0, phaseDurationMs: 0, phaseProgress: 0 };
-    }
-    return { ...h, phase: nextP, startedAtMs: nowMs, phaseDurationMs: PHASE_MS[nextP as keyof typeof PHASE_MS] || 1200, phaseProgress: 0 };
-  }
-  return h;
-}
-
 export function startRoute(s: SimulatorState, route: RoutePreset): SimulatorState {
   const nowMs = since();
   const s2: SimulatorState = {
-    ...s, currentRoute: route, routeProgress: 0, lastMpuMessageAtMs: nowMs, reps: s.reps,
+    ...s,
+    currentRoute: route,
+    routeProgress: 0,
+    lastMpuMessageAtMs: nowMs,
+    activeDemo: null,
+    pathPlayback: null,
+    onTimelineDone: null,
+    scriptedHoldUntilMs: 0,
+    jointTween: null,
+    legTimeline: null,
   };
 
   switch (route) {
     case 'home':
-      return {
-        ...s2,
-        legTimeline: {
-          from: s2.joints, to: { ...HOME },
-          startedAt: nowMs, durationMs: estimatedSCurveDurationMs(poseDeltaDeg(s2.joints, HOME), 45, 120),
-        },
-      };
+      return queueMotionViaHome(s2, HOME);
     case 'park':
-      return {
-        ...s2,
-        legTimeline: {
-          from: s2.joints, to: PARK,
-          startedAt: nowMs, durationMs: estimatedSCurveDurationMs(poseDeltaDeg(s2.joints, PARK), 45, 120),
-        },
-      };
-    case 'htl':
-      return {
-        ...s2,
-        htl: {
-          ...s2.htl,
-          phase: 'REACH',
-          startedAtMs: nowMs,
-          phaseDurationMs: PHASE_MS.REACH,
-          targetPuckXYZ: { x: 120, y: 0, z: 25, tool: 90 },
-          gripperClosed: false,
-        },
-      };
+      return queueMotionViaHome(s2, { ...TRANSPORT, gripper: s2.joints.gripper });
     case 'reach-carry':
-      return {
-        ...s2,
-        legTimeline: {
-          from: s2.joints,
-          to: { base: 90, shoulder: 60, elbow: 120, wrist: 90, gripper: 10 },
-          startedAt: nowMs,
-          durationMs: 4000,
-        },
-      };
+      return queueMotionViaHome(s2, { base: 90, shoulder: 60, elbow: 120, wrist: 90, gripper: 10 });
+    case 'htl':
     case 'orbital':
     case 'cobra':
     case 'snake':
@@ -298,25 +386,8 @@ export function startRoute(s: SimulatorState, route: RoutePreset): SimulatorStat
     case 'gimme':
     case 'bicep-set':
     case 'lateral-set':
-    case 'elbowflex-set': {
-      const toMap: Record<string, JointsDeg> = {
-        'orbital': { base: 90, shoulder: 45, elbow: 150, wrist: 90, gripper: 60 },
-        'cobra':   { base: 90, shoulder: 30, elbow: 170, wrist: 90, gripper: 60 },
-        'snake':   { base: 90, shoulder: 85, elbow: 130, wrist: 120, gripper: 50 },
-        'pendulum':{ base: 90, shoulder: 150, elbow: 170, wrist: 90, gripper: 30 },
-        'gimme':   { base: 90, shoulder: 60, elbow: 140, wrist: 45, gripper: 0 },
-        'bicep-set':   { base: 90, shoulder: 80, elbow: 120, wrist: 90, gripper: 40 },
-        'lateral-set': { base: 120, shoulder: 95, elbow: 110, wrist: 90, gripper: 40 },
-        'elbowflex-set': { base: 90, shoulder: 115, elbow: 140, wrist: 90, gripper: 40 },
-      };
-      return {
-        ...s2,
-        legTimeline: {
-          from: s2.joints, to: toMap[route],
-          startedAt: nowMs, durationMs: route === 'orbital' ? 9000 : 5200,
-        },
-      };
-    }
+    case 'elbowflex-set':
+      return beginAnimatedRoute(s2, route, queueTweens, tweenToJoints, nowMs);
     default:
       return s2;
   }
@@ -338,6 +409,12 @@ export function stopSequence(s: SimulatorState): SimulatorState {
     currentRoute: null,
     routeProgress: 0,
     legTimeline: null,
+    jointTween: null,
+    tweenQueue: [],
+    onTimelineDone: null,
+    activeDemo: null,
+    pathPlayback: null,
+    scriptedHoldUntilMs: 0,
     htl: { ...s.htl, phase: 'IDLE', phaseProgress: 0, phaseDurationMs: 0, startedAtMs: 0 },
   };
 }

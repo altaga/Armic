@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
@@ -7,9 +7,13 @@ import Slider from './src/components/Slider';
 import {
   SimulatorState, createInitialState, tick, setJointsDirect, startRoute, feedMpuHeartbeat,
   RoutePreset, addSimulatedRep, setClawPct, stopSequence, stopRoute,
+  requestMotion, setPayloadKg as setSimPayloadKg, setManualPreview,
 } from './src/sim/simulator';
-import { JOINT_LIMITS, JointsDeg } from './src/sim/safety';
-import { buildArmScene, applyJointsToScene, ArmScene, applyWorldOffset } from './src/scene/armScene';
+import { JOINT_LIMITS, JointsDeg, C_POSE, TRANSPORT } from './src/sim/safety';
+import { computeTorques } from './src/sim/torque';
+import { angleToPwm, clawPctToPwm } from './src/sim/motors';
+import { buildArmScene, applyJointsToScene, ArmScene, applyWorldOffset, setPayloadVisible } from './src/scene/armScene';
+import WebArmCanvas from './src/scene/WebArmCanvas';
 import { IKResult, fkForward } from './src/sim/kinematics';
 
 type CollapseKey =
@@ -81,10 +85,8 @@ const WARMUP_POSES: { label: string; meta: string; accentName: string; joints: J
 ];
 
 const NAMED_POSES: { label: string; meta: string; accentName: string; joints: JointsDeg }[] = [
-  { label: 'C Pose', meta: 'base ~90 · sh ~55 · el ~155 · wr ~150', accentName: 'cpose',
-    joints: { base: 90, shoulder: 55, elbow: 155, wrist: 150, gripper: 100 } },
-  { label: 'Transport', meta: 'base 90 · sh 90 · el 180 · wr 180 · tip ↓', accentName: 'transport',
-    joints: { base: 90, shoulder: 90, elbow: 180, wrist: 180, gripper: 100 } },
+  { label: 'C Pose', meta: 'base ~90 · sh ~55 · el ~155 · wr ~150', accentName: 'cpose', joints: C_POSE },
+  { label: 'Transport', meta: 'base 90 · sh 90 · el 180 · wr 180 · tip ↓', accentName: 'transport', joints: TRANSPORT },
 ];
 
 const DYNAMICS_DEMOS: { id: RoutePreset; title: string; body: string; meta: string; accentName: string }[] = [
@@ -138,7 +140,7 @@ const ACCENT_HEADER: Record<CollapseKey, string> = {
   poses:     '#7ec8e3',
   dynamics:  '#ffaa00',
   sequences: '#55aaff',
-  scene:     '#9b9ab8',
+  scene:     '#8a9ab8',
 };
 
 const COLLAPSE_KICKER: Record<CollapseKey, string> = {
@@ -199,6 +201,14 @@ export default function App() {
   const [worldOffset, setWorldOffset] = useState({ x: 0, y: -7.5, z: 0 });
 
   useEffect(() => {
+    stateRef.current = setSimPayloadKg(stateRef.current, payloadKg);
+  }, [payloadKg]);
+
+  useEffect(() => {
+    stateRef.current = setManualPreview(stateRef.current, manualOverride);
+  }, [manualOverride]);
+
+  useEffect(() => {
     stateRef.current = feedMpuHeartbeat(stateRef.current);
     let cancelled = false;
     const id = setInterval(() => {
@@ -217,6 +227,10 @@ export default function App() {
     if (sceneRef.current) applyWorldOffset(sceneRef.current, worldOffset);
   }, [worldOffset.x, worldOffset.y, worldOffset.z]);
 
+  useEffect(() => {
+    if (sceneRef.current) setPayloadVisible(sceneRef.current, payloadKg, dumbbellG);
+  }, [payloadKg, dumbbellG]);
+
   const onGLContextCreate = async (gl: any) => {
     try {
       glRef.current = gl;
@@ -225,12 +239,10 @@ export default function App() {
       const scene = buildArmScene({ gl, width, height });
       applyWorldOffset(scene, worldOffset);
       sceneRef.current = scene;
-      const renderer = scene.renderer;
       const renderLoop = () => {
-        if (!glRef.current) return;
-        scene.camera.updateProjectionMatrix();
-        renderer.render(scene.scene, scene.camera);
-        gl.endFrameEXP();
+        if (!glRef.current || !sceneRef.current) return;
+        scene.renderer.render(scene.scene, scene.camera);
+        scene.endFrame?.();
         requestAnimationFrame(renderLoop);
       };
       setReady(true);
@@ -239,6 +251,11 @@ export default function App() {
       console.error('Three.js scene init failed:', err);
     }
   };
+
+  const onWebSceneReady = useCallback((scene: ArmScene | null) => {
+    sceneRef.current = scene;
+    setReady(scene !== null);
+  }, []);
 
   const s = stateRef.current;
   const pose = useMemo(() => {
@@ -260,8 +277,8 @@ export default function App() {
     }
     rerender();
   };
-  const applyPoseDirect = (j: JointsDeg) => {
-    stateRef.current = setJointsDirect(stateRef.current, j);
+  const applyPose = (j: JointsDeg) => {
+    stateRef.current = requestMotion(stateRef.current, { ...j, gripper: stateRef.current.joints.gripper });
     rerender();
   };
   const setClaw = (pct: number) => {
@@ -273,38 +290,35 @@ export default function App() {
   const jointDirs: Record<keyof JointsDeg, 'D' | 'I'> = {
     base: 'D', shoulder: 'I', elbow: 'D', wrist: 'D', gripper: 'D',
   };
-  const degToPwm = (k: keyof JointsDeg, deg: number) => {
-    const [lo, hi] = k === 'elbow' ? [300, 500] : k === 'gripper' ? [236, 440] : [100, 500];
-    return Math.round(lo + (deg / 180) * (hi - lo));
-  };
+  const degToPwm = (k: keyof JointsDeg, deg: number) =>
+    k === 'gripper' ? clawPctToPwm(deg) : angleToPwm(deg, k as 'base' | 'shoulder' | 'elbow' | 'wrist');
 
-  const pctToClawPwm = (pct: number) => Math.round(236 + pct / 100 * (440 - 236));
+  const pctToClawPwm = clawPctToPwm;
 
-  const torqueSh = 0.38 * Math.sin((s.joints.shoulder - 90) * Math.PI / 180) + payloadKg * 0.12;
-  const torqueEl = 0.52 * Math.sin((s.joints.elbow - 90) * Math.PI / 180) + payloadKg * 0.15;
-  const torqueWr = 0.18 * Math.cos((s.joints.wrist - 90) * Math.PI / 180) + payloadKg * 0.05;
+  const torque = useMemo(
+    () => computeTorques(s.joints, payloadKg),
+    [s.joints.base, s.joints.shoulder, s.joints.elbow, s.joints.wrist, payloadKg],
+  );
+  const torqueSh = torque.shoulder_Nm;
+  const torqueEl = torque.elbow_Nm;
+  const torqueWr = torque.wrist_Nm;
   const wScore = 0.4 + 0.6 * Math.max(0, Math.sin(((s.joints.elbow - 90) / 90) * Math.PI));
   const postureRating = wScore > 0.75 ? 'OPTIMAL' : wScore > 0.5 ? 'STABLE' : wScore > 0.3 ? 'DERATED' : 'STRAIN';
   const ratingColor = wScore > 0.75 ? $ok : wScore > 0.5 ? $accent : wScore > 0.3 ? $warn : $err;
-
-  const routePills = [
-    { title: 'HTL-1', sub: 'Reach', done: s.currentRoute && s.routeProgress > 0.05, active: s.currentRoute && s.routeProgress >= 0.05 && s.routeProgress < 0.25 },
-    { title: 'HTL-2', sub: 'Fold',  done: s.currentRoute && s.routeProgress > 0.25, active: s.currentRoute && s.routeProgress >= 0.25 && s.routeProgress < 0.5 },
-    { title: 'HTL-3', sub: 'Tuck',  done: s.currentRoute && s.routeProgress > 0.5,  active: s.currentRoute && s.routeProgress >= 0.5 && s.routeProgress < 0.75 },
-    { title: 'HTL-4', sub: 'Over',  done: s.currentRoute && s.routeProgress > 0.75, active: s.currentRoute && s.routeProgress >= 0.75 && s.routeProgress < 1 },
-    { title: 'HOME',  sub: 'Rest',  done: s.currentRoute && s.routeProgress >= 1,   active: false },
-  ];
 
   const renderCollapse = (key: CollapseKey, first = false) => {
     const open = !collapsed[key];
     const color = ACCENT_HEADER[key];
     return (
       <View key={key} style={{ marginBottom: first ? 0 : 0 }}>
-        <Pressable onPress={() => setCollapsed((c) => ({ ...c, [key]: !c[key] }))}>
+        <Pressable
+          onPress={() => setCollapsed((c) => ({ ...c, [key]: !c[key] }))}
+          {...(Platform.OS === 'web' ? { className: 'armic-collapse-header' } as any : {})}
+        >
           <Text
             style={[
               styles.h2,
-              { color: open ? color : '#7a8480', marginTop: 18, paddingTop: first ? 6 : 6, paddingBottom: 6, paddingLeft: 16 },
+              { color, marginTop: first ? 10 : 18, paddingTop: first ? 6 : 6, paddingBottom: 6, paddingLeft: 16 },
             ]}>
             {COLLAPSE_LABEL[key]}
             <Text style={styles.secKicker}>
@@ -336,7 +350,11 @@ export default function App() {
         <Text style={styles.demoMeta}>{opts.meta}</Text>
         {opts.onPress && (
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable onPress={opts.onPress} style={[styles.btnPrimary, { flex: 1 }]}>
+            <Pressable
+              onPress={opts.onPress}
+              style={[styles.btnPrimary, { flex: 1 }]}
+              {...(Platform.OS === 'web' ? { className: 'armic-btn-primary' } as any : {})}
+            >
               <Text style={styles.btnPrimaryLabel}>{opts.primary || opts.title}</Text>
             </Pressable>
           </View>
@@ -447,7 +465,7 @@ export default function App() {
                 ? 'Upright rest with load — identical to Home: joints near 90°, elbow at 95° so gravity does not hunt the soft limit.'
                 : 'Curl-down hold: shoulder forward, elbow fully folded, wrist pitched for the load. Use after grabbing the dumbbell with the claw.',
               meta: p.meta, accentName: p.accentName, primary: p.label,
-              onPress: () => applyPoseDirect(p.joints),
+              onPress: () => p.label === 'Dumbbell Up' ? runRoute('home') : applyPose(p.joints),
             }))}
           </View>
         );
@@ -466,7 +484,11 @@ export default function App() {
                 <View key={r.id} style={[styles.routeCard, { borderLeftColor: a.border }]}>
                   <Text style={[styles.routeCardTitle, { color: a.title }]}>{r.label}</Text>
                   <Text style={styles.routeCardMeta}>{r.meta}{'\n'}{r.steps}</Text>
-                  <Pressable onPress={() => runRoute(r.exercises[0])} style={styles.routeExecuteBtn}>
+                  <Pressable
+                    onPress={() => runRoute(r.exercises[0])}
+                    style={styles.routeExecuteBtn}
+                    {...(Platform.OS === 'web' ? { className: 'armic-route-exec' } as any : {})}
+                  >
                     <Text style={styles.routeExecuteLabel}>Execute</Text>
                   </Pressable>
                 </View>
@@ -509,7 +531,10 @@ export default function App() {
               </Text>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                 <Pressable disabled={!manualOverride}
-                  onPress={() => { stateRef.current = feedMpuHeartbeat(s); rerender(); }}
+                  onPress={() => {
+                    stateRef.current = requestMotion(stateRef.current, stateRef.current.joints);
+                    rerender();
+                  }}
                   style={[styles.btnPrimary, { flex: 1, opacity: manualOverride ? 1 : 0.55 }]}>
                   <Text style={styles.btnPrimaryLabel}>Execute on arm</Text>
                 </Pressable>
@@ -546,14 +571,14 @@ export default function App() {
       case 'poses':
         return (
           <View>
-            <Text style={styles.sectionLead}>Each pose homes first, then moves to the target. Use these as known checkpoints when chaining moves by name.</Text>
+            <Text style={styles.sectionLead}>Every pose homes first (direct S-curve to 90/90/95/90), then moves to the hold — same rule as demos and routes.</Text>
             {NAMED_POSES.map((p) => renderDemoCard({
               title: p.label, body:
                 p.label === 'C Pose'
                   ? 'Gentle open “C” in the sagittal plane — tip high and slightly forward. Showcase reach without folding into the floor or overloading the shoulder.'
-                  : 'Deep tuck for carrying load: upper arm vertical, forearm horizontal, tip straight down. Keeps payload close to the column — same carry pose used mid-way through Heavy Tucked Lift.',
+                  : 'Deep tuck for carrying load: upper arm vertical, forearm horizontal, tip straight down. Keeps payload close to the column.',
               meta: p.meta, accentName: p.accentName, primary: p.label,
-              onPress: () => applyPoseDirect(p.joints),
+              onPress: () => applyPose(p.joints),
             }))}
           </View>
         );
@@ -634,17 +659,6 @@ export default function App() {
     return null;
   };
 
-  const routeBannerKind: 'arm' | 'patient' | 'celebration' | null =
-    !s.currentRoute ? null :
-    s.routeProgress >= 1 ? 'celebration' :
-    s.routeProgress < 0.2 ? 'arm' : 'patient';
-  const bannerText = routeBannerKind === 'celebration' ? 'COMPLETE' :
-    routeBannerKind === 'patient' ? 'HOLD' :
-    routeBannerKind === 'arm' ? 'MOVE' : '';
-  const bannerSub = routeBannerKind === 'celebration' ? `${s.reps.length} reps logged` :
-    routeBannerKind === 'patient' ? 'Keep pace with the arm' :
-    routeBannerKind === 'arm' ? `${s.lastCartesianStage} · branch ${s.lastIKBranch || '—'}` : '';
-
   return (
     <View style={styles.root}>
       <View style={styles.layout}>
@@ -655,21 +669,29 @@ export default function App() {
             <Image source={require('./assets/logostroke.png')} style={styles.brandLogo} resizeMode="contain" />
               <View>
                 <Text style={styles.brandName}>ARMIC</Text>
-                <Text style={styles.brandTag}>Aether 4DOF · Rehab Controller · Web Sim</Text>
+                <Text style={styles.brandTag}>Aether 4DOF · Rehab Controller</Text>
               </View>
             </View>
           </View>
 
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 14, paddingBottom: 24 }}>
+          <ScrollView
+            nativeID="armic-sidebar-scroll"
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.sidebarScroll}
+          >
             <View>
                 <View style={styles.homeQuickBar}>
-                  <Pressable style={styles.homeQuickBtn} onPress={() => runRoute('home')}>
+                  <Pressable
+                    style={styles.homeQuickBtn}
+                    onPress={() => runRoute('home')}
+                    {...(Platform.OS === 'web' ? { className: 'armic-home-btn' } as any : {})}
+                  >
                     <Text style={styles.homeQuickLabel}>Return Home</Text>
                   </Pressable>
                 </View>
 
                 <View style={styles.sidebarGroupFirst}>
-                  <Text style={styles.sidebarGroupLabel}>Session setup</Text>
+                  <Text style={styles.sidebarGroupLabelFirst}>Session setup</Text>
                   <Text style={styles.sidebarGroupDesc}>Follow top to bottom before each rehab run.</Text>
                   {renderCollapse('claw', true)}
                   {renderCollapse('torque')}
@@ -709,14 +731,18 @@ export default function App() {
         {/* ====== CANVAS ====== */}
         <View style={styles.canvasWrap}>
           {Platform.OS === 'web' ? (
-            <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-              <GLView style={styles.canvas} onContextCreate={onGLContextCreate} />
-            </div>
+            <WebArmCanvas
+              joints={s.joints}
+              worldOffset={worldOffset}
+              payloadKg={payloadKg}
+              dumbbellGrams={dumbbellG}
+              onReady={onWebSceneReady}
+            />
           ) : (
             <GLView style={styles.canvas} onContextCreate={onGLContextCreate} />
           )}
           {!ready && (
-            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', zIndex: 5, backgroundColor: '#07090a' }]}>
+            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', zIndex: 5, backgroundColor: '#0d0d0d' }]}>
               <ActivityIndicator color={$accent} />
               <Text style={{ color: $textDim, marginTop: 8 }}>Loading Three.js scene…</Text>
             </View>
@@ -742,57 +768,6 @@ export default function App() {
             </View>
           </View>
 
-          {/* Route progress strip (bottom-center) */}
-          {s.currentRoute && (
-            <View pointerEvents="auto" style={styles.routeProgress}>
-              <View style={styles.routeProgressHead}>
-                <View>
-                  <Text style={styles.routeProgressTitle}>{s.currentRoute.toUpperCase()}</Text>
-                  <Text style={styles.routeProgressStep}>
-                    {Math.ceil(s.routeProgress * routePills.length)} / {routePills.length} · {(s.routeProgress * 100).toFixed(0)}%
-                  </Text>
-                </View>
-                <View style={styles.routeProgressHeadRight}>
-                  <Pressable onPress={() => runRoute('home')} style={styles.routeProgressStop}>
-                    <Text style={{ color: '#ff8a8a', fontSize: 17, fontWeight: '700', lineHeight: 22 }}>×</Text>
-                  </Pressable>
-                </View>
-              </View>
-              <View style={styles.routeProgressPills}>
-                {routePills.map((p, i) => (
-                  <View key={i} style={[
-                    styles.routePill,
-                    p.active ? { borderColor: 'rgba(155,126,237,0.6)', backgroundColor: 'rgba(155,126,237,0.14)' } : null,
-                    p.done ? { borderColor: 'rgba(0,212,184,0.35)', backgroundColor: 'rgba(0,212,184,0.08)' } : null,
-                  ]}>
-                    <Text style={[styles.routePillTitle,
-                      p.active ? { color: '#e8dcff' } : null,
-                      p.done ? { color: $accent } : null,
-                    ]}>{p.title}</Text>
-                    <Text style={styles.routePillSub}>{p.sub}</Text>
-                    {p.done ? <Text style={styles.routePillCheck}>✓</Text> : null}
-                  </View>
-                ))}
-              </View>
-              {routeBannerKind ? (
-                <View style={[
-                  styles.routeProgressBanner,
-                  routeBannerKind === 'arm' ? { backgroundColor: 'rgba(155,126,237,0.12)', borderColor: 'rgba(155,126,237,0.35)' } : null,
-                  routeBannerKind === 'patient' ? { backgroundColor: 'rgba(255,204,0,0.12)', borderColor: 'rgba(255,204,0,0.45)' } : null,
-                  routeBannerKind === 'celebration' ? { backgroundColor: 'rgba(0,255,102,0.1)', borderColor: 'rgba(0,255,102,0.35)' } : null,
-                ]}>
-                  <Text style={[styles.bannerText,
-                    routeBannerKind === 'arm' ? { color: '#d8c8ff' } : null,
-                    routeBannerKind === 'patient' ? { color: '#ffdd66' } : null,
-                    routeBannerKind === 'celebration' ? { color: '#9dffb8' } : null,
-                  ]}>{bannerText}</Text>
-                  <Text style={[styles.bannerSub,
-                    routeBannerKind === 'patient' ? { color: '#ffe08a', fontSize: 14 } : null,
-                  ]}>{bannerSub}</Text>
-                </View>
-              ) : null}
-            </View>
-          )}
         </View>
       </View>
 
@@ -831,22 +806,28 @@ function SliderNumberInput({ value, min, max, step, onChange, width = 56 }: { va
 }
 
 const styles = StyleSheet.create({
-  root: { width: '100%', height: '100%', backgroundColor: $bg, overflow: 'hidden' },
+  root: {
+    width: '100%', height: '100%', minHeight: Platform.OS === 'web' ? ('100vh' as any) : undefined,
+    backgroundColor: $bg, overflow: 'hidden', color: $text,
+    ...(Platform.OS === 'web' ? {
+      fontFamily: '"Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+    } : {}),
+  },
   layout: { flex: 1, flexDirection: 'row', width: '100%', height: '100%' },
 
   sidebar: { width: 380, backgroundColor: $panel, borderRightWidth: 1, borderRightColor: $line },
-  canvasWrap: { flex: 1, position: 'relative', backgroundColor: '#07090a' },
+  sidebarScroll: { paddingHorizontal: 16, paddingVertical: 14, paddingBottom: 24 },
+  canvasWrap: { flex: 1, position: 'relative', backgroundColor: '#0d0d0d' },
   canvas: { flex: 1 },
 
   appTopbar: {
     paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10,
     backgroundColor: $panelElev, borderBottomWidth: 1, borderBottomColor: $line,
+    ...(Platform.OS === 'web' ? { position: 'sticky' as any, top: 0, zIndex: 20 } : {}),
   },
-  brandLogo: {
-    width: 36, height: 36,
-  },
-  brandName: { fontSize: 15, fontWeight: '700', color: $text, letterSpacing: 1.4 },
-  brandTag: { fontSize: 11, color: $textDim, marginTop: 2, letterSpacing: 0.3 },
+  brandLogo: { width: 36, height: 36 },
+  brandName: { fontSize: 15, fontWeight: '700', color: $text, letterSpacing: 2.1, lineHeight: 17 },
+  brandTag: { fontSize: 11, color: $textDim, marginTop: 2, letterSpacing: 0.2 },
 
   dashboardHeader: {
     backgroundColor: 'rgba(0,0,0,0.2)', borderWidth: 1, borderColor: $line, borderRadius: 8,
@@ -881,7 +862,7 @@ const styles = StyleSheet.create({
 
   controlsDivider: { height: 1, backgroundColor: $line, marginVertical: 4, marginHorizontal: -16 },
 
-  homeQuickBar: { marginBottom: 12, marginTop: 4 },
+  homeQuickBar: { marginBottom: 4, marginTop: 0 },
   homeQuickBtn: {
     width: '100%', paddingVertical: 11, paddingHorizontal: 14, borderRadius: 6,
     backgroundColor: 'rgba(126,200,227,0.12)', borderWidth: 1, borderColor: 'rgba(126,200,227,0.45)', alignItems: 'center',
@@ -891,14 +872,18 @@ const styles = StyleSheet.create({
   sidebarGroup: { marginBottom: 4 },
   sidebarGroupFirst: { marginBottom: 4 },
   sidebarGroupLabel: {
-    fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1,
+    fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.9,
     color: $accent, marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: $line, marginBottom: 4,
+  },
+  sidebarGroupLabelFirst: {
+    fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.9,
+    color: $accent, marginTop: 10, marginBottom: 4,
   },
   sidebarGroupDesc: { fontSize: 11, color: $mut, marginBottom: 8, lineHeight: 16 },
 
   h2: {
-    fontSize: 13, fontWeight: '700', color: $mut,
-    textTransform: 'uppercase', letterSpacing: 0.07 * 16,
+    fontSize: 13, fontWeight: '700',
+    textTransform: 'uppercase', letterSpacing: 1.12,
     position: 'relative',
   },
   secKicker: {
@@ -1033,38 +1018,4 @@ const styles = StyleSheet.create({
     lineHeight: 52, letterSpacing: -2,
   },
 
-  routeProgress: {
-    position: 'absolute', left: 0, right: 0, bottom: 14,
-    alignItems: 'center', justifyContent: 'center', zIndex: 16,
-  },
-  routeProgressInner: {
-    minWidth: 300, maxWidth: 540, width: '94%',
-    padding: 12, paddingHorizontal: 14, paddingBottom: 10,
-    backgroundColor: 'rgba(8,12,11,0.94)', borderWidth: 1, borderColor: '#1f3f36',
-    borderRadius: 10,
-  },
-  routeProgressHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
-  routeProgressHeadRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  routeProgressStop: {
-    width: 26, height: 26, padding: 0, borderRadius: 6,
-    borderWidth: 1, borderColor: 'rgba(255,90,90,0.35)', backgroundColor: 'rgba(255,70,70,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  routeProgressTitle: { fontSize: 12, fontWeight: '700', color: '#c4b0f0', letterSpacing: 0.3 },
-  routeProgressStep: { fontSize: 11, fontWeight: '600', color: $accent },
-  routeProgressPills: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'stretch' },
-  routePill: {
-    flex: 1, minWidth: 0, paddingVertical: 8, paddingHorizontal: 6,
-    borderRadius: 8, borderWidth: 1, borderColor: '#2a2a32',
-    backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', position: 'relative',
-  },
-  routePillTitle: { fontSize: 12, fontWeight: '700', color: '#b8b8c4' },
-  routePillSub: { fontSize: 9, color: $mut, marginTop: 2 },
-  routePillCheck: { position: 'absolute', top: 4, right: 6, fontSize: 10, color: $ok, fontWeight: '700' },
-  routeProgressBanner: {
-    display: 'flex', textAlign: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8,
-    borderWidth: 1, borderColor: 'transparent', alignItems: 'center', marginTop: 4,
-  },
-  bannerText: { fontSize: 18, fontWeight: '800', letterSpacing: 1, lineHeight: 22, textAlign: 'center' },
-  bannerSub: { marginTop: 4, fontSize: 12, fontWeight: '600', color: '#d8d8e0', textAlign: 'center' },
 });

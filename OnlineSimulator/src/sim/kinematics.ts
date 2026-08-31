@@ -98,9 +98,10 @@ export function solveIKAnalytical(
 
   // Joint-band pre-clamp before verify so we pass values that would actually ship
   const clamped: JointsDeg = { ...pick };
-  clamped.base = clampBand(clamped.base, 10, 170);
-  clamped.shoulder = clampBand(clamped.shoulder, 0, 135);
+  clamped.base = clampBand(clamped.base, 0, 180);
+  clamped.shoulder = clampBand(clamped.shoulder, 0, 180);
   clamped.elbow = clampBand(clamped.elbow, 90, 180);
+  clamped.wrist = clampBand(clamped.wrist, 0, 180);
 
   const verify = fkForward(clamped);
   const dx = verify.x - target.x;

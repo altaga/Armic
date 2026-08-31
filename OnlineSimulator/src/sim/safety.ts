@@ -10,16 +10,21 @@ export type JointsDeg = {
   gripper: number;  // 0 closed - 90 open
 };
 
+// Match armic-webui RESTRICTIONS (visual sim + named poses; firmware rehab clamps are separate)
 export const JOINT_LIMITS: Record<keyof JointsDeg, [number, number]> = {
-  base: [10, 170],
-  shoulder: [0, 135],
-  elbow: [90, 180],        // anti-hyperextend
-  wrist: [45, 135],
+  base: [0, 180],
+  shoulder: [0, 180],
+  elbow: [90, 180],
+  wrist: [0, 180],
   gripper: [0, 90],
 };
 
 export const HOME: JointsDeg = { base: 90, shoulder: 90, elbow: 95, wrist: 90, gripper: 30 };
 export const PARK: JointsDeg = { base: 90, shoulder: 120, elbow: 110, wrist: 90, gripper: 40 };
+/** Carry / transport pose — home first, then this target */
+export const TRANSPORT: JointsDeg = { base: 90, shoulder: 90, elbow: 180, wrist: 180, gripper: 100 };
+/** arm-simulator.html testPoseBtn — locked C joints */
+export const C_POSE: JointsDeg = { base: 90, shoulder: 55, elbow: 155, wrist: 150, gripper: 100 };
 
 export const FLOOR_GUARD_MM = 15;                 // tip Z minimum above table plane
 export const MAX_POSE_DELTA_DEG_PER_TICK = 30;    // 30 deg / 10ms = 3000 deg/s ceiling

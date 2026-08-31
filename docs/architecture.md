@@ -4,13 +4,18 @@
 
 ```mermaid
 flowchart TB
-  subgraph UNO_Q["Arduino UNO Q"]
-    MPU["MPU Linux App Lab\nEdge Impulse · FastAPI · LLM · Web UI · MQTT"]
-    MCU["MCU STM32U585 Zephyr\nArmPipeline · ProtocolRunner · 100 Hz"]
-    MPU <-->|Router Bridge RPC| MCU
-  end
+  MPU["MPU Linux App Lab\nEdge Impulse · FastAPI · LLM · Web UI · MQTT"]
+  MCU["MCU STM32U585 · 100 Hz\nArmPipeline · ProtocolRunner"]
+  MPU <-->|Router Bridge RPC| MCU
   MCU -->|I2C| PCA["PCA9685 16-ch PWM 50 Hz"]
   PCA --> ARM["4-DOF arm + gripper ch0-4"]
+
+  classDef mpu fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+  classDef mcu fill:#047857,color:#ffffff,stroke:#6ee7b7,stroke-width:2px
+  classDef hw fill:#334155,color:#ffffff,stroke:#94a3b8,stroke-width:2px
+  class MPU mpu
+  class MCU mcu
+  class PCA,ARM hw
 ```
 
 | Side | Responsibility |

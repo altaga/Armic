@@ -53,6 +53,7 @@ const GIF_TARGETS = [
   '10bicep.gif',
   '11lateral.gif',
   '12elbow.gif',
+  '13claw.gif',
   '0.5claude.gif',
 ];
 

@@ -20,6 +20,9 @@ Side/
 backup/
 *-backup/
 Armic-backup/
+# Full-res image archive (local only — see Images/README.md)
+Images/originals/*
+!Images/originals/README.md
 
 # Local-only deliverables / AI-internal planning (never push to public)
 Hackster Contest Plan/

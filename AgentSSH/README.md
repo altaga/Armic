@@ -172,7 +172,7 @@ Create `~/.claude-ssh.json` if you want to override defaults:
 
 ARMIC ships two agentic-hardware dev loops that share the same 4-tool LLM brick contract. Devs choose their pick:
 
-### Option 1 — Claude CLI *on-device* (original ARMIC dev loop shown in `0.5claude.gif`)
+### Option 1 — Claude CLI *on-device* (original ARMIC dev loop shown in `Images/0.5claude.mp4`)
 
 Install Anthropic's `claude` CLI **inside a terminal session literally on the UNO Q itself** (SSH shell → App Lab container), mount the `AI Skills/` bundle (3 rules + 31 skills) so the agent inherits the joint hard bands, E-STOP-first, calibration 3-phase commit rules, and prompt. The agent edits, deploys, and self-corrects *all on the same filesystem the firmware and agent actually run on.* Zero cross-compile, zero re-plug, zero copy from laptop → board because the agent already sits on the board.
 

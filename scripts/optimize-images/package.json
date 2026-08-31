@@ -1,0 +1,12 @@
+{
+  "name": "armic-image-optimizer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "optimize": "node optimize.mjs"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "sharp": "^0.33.5"
+  }
+}

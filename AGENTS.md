@@ -181,7 +181,7 @@ Pre-push: scan for credential patterns above.
 
 ### Loop A — On-device (bench)
 
-Agent runs **on UNO Q** with `AI Skills/` mounted. Edits local `~/ArduinoApps/armic`, restarts app, dry-runs protocols. See demo GIF `Images/0.5claude.gif`.
+Agent runs **on UNO Q** with `AI Skills/` mounted. Edits local `~/ArduinoApps/armic`, restarts app, dry-runs protocols. See demo clip `Images/0.5claude.mp4` (original GIF in `Images/originals/`).
 
 ### Loop B — Laptop + AgentSSH MCP
 

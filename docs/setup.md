@@ -51,7 +51,7 @@ When you have a board, follow **App Lab deploy** above for the real system (`htt
 | Breadboard wiring | `Images/Armic_bb.png` | In repo |
 | Fritzing source | `Images/Armic.fzz` | In repo — export **Schematic view → PNG** as `Images/Armic_sch.png` for Schematics panel |
 | UI screenshots | `Images/mainUI.png`, `testmqttUI.png`, `applab.png`, `agentready.png`, `warmingupagent.png` | In repo |
-| Demo GIFs | `Images/*.gif` | In repo |
+| Demo clips | `Images/*.mp4` (original GIFs in `Images/originals/`) | In repo |
 
 ---
 

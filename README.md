@@ -34,7 +34,7 @@
 | Build | [BOM](#things-used--bill-of-materials-bom) · [Hardware](#hardware--off-the-shelf-wired-cleanly) · [Deploy](#deploy-on-arduino-uno-q--the-real-system) · [Run](#how-to-run-it--6-steps-20-minutes) |
 | Story | [Problem](#the-problem-we-built-this-for) · [Session loop](#what-if-therapy-happened-with-you--not-to-you) · [UNO Q](#why-arduino-uno-q-because-its-two-brains-in-one) |
 | Motion | [Rehab GIFs](#rehabilitation-in-motion--the-3-protocols) · [Demo repertoire](#bonus-motion-repertoire--demo-capability-and-calibration-self-check) |
-| Software | [UI screens](#the-full-interface--four-screens-one-board) · [Simulator](#no-board-no-problem--enter-the-online-simulator) · [Agent](#the-agent-inside-qwen35-08b-on-the-uno-q-mpu--why-edge-llm-why-this-model) |
+| Software | [UI screens](#the-full-interface--four-screens-one-board) · [Simulator](#no-board-no-problem--enter-the-online-simulator) · [Agent](#the-agent-inside-qwen35-08b-on-the-uno-q-mpu) |
 | Project | [Token](#why-we-launched-armic--making-the-project-real-the-honest-story) · [Team](#the-team-behind-armic--biomedical-engineers-not-crypto-bros-heres-the-proof) · [Roadmap](#whats-next--hackster-submission-is-the-milestone-not-the-finish-line) · [Math docs](#deep-dive--for-judges-who-want-the-math) |
 
 ---

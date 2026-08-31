@@ -1,0 +1,17 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - type: bind
+        source: ${APP_HOME}/armic-wearable/mosquitto.conf
+        target: /mosquitto/config/mosquitto.conf
+        read_only: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"
+    labels:
+      cc.arduino.app: "true"

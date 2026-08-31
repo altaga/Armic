@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<!--
+SPDX-FileCopyrightText: Armic project
+SPDX-License-Identifier: MPL-2.0
+TEMP hackathon page — M5 Core2 MQTT feed. Delete when no longer needed.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Armic :: Wearable MQTT (debug)</title>
+  <style>
+    :root {
+      --bg: #0a0c0b;
+      --panel: #121816;
+      --line: #243028;
+      --fg: #e8f0ec;
+      --dim: #7a8a82;
+      --accent: #00ffcc;
+      --ok: #00ff66;
+      --warn: #ffaa00;
+      --err: #ff3366;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 13px;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 40px; }
+    .banner {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--warn);
+      border: 1px dashed #4a3a10;
+      background: rgba(255, 170, 0, 0.06);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    h1 { font-size: 18px; margin: 0 0 4px; color: var(--accent); }
+    .sub { font-size: 11px; color: var(--dim); margin-bottom: 20px; }
+    .sub a { color: var(--accent); }
+    .grid { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .card.full { grid-column: 1 / -1; }
+    .card h2 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--dim);
+      margin: 0 0 10px;
+      font-weight: normal;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid var(--line);
+    }
+    .status-pill.ok { color: var(--ok); border-color: #1a6644; background: rgba(0,255,102,0.08); }
+    .status-pill.warn { color: var(--warn); border-color: #664a1a; background: rgba(255,170,0,0.08); }
+    .status-pill.err { color: var(--err); border-color: #662233; background: rgba(255,51,102,0.08); }
+    .status-pill.busy { color: var(--warn); border-color: #444; }
+    .big {
+      font-size: 22px;
+      color: var(--fg);
+      margin: 4px 0;
+      word-break: break-word;
+    }
+    .meta { font-size: 11px; color: var(--dim); line-height: 1.5; }
+    .log {
+      max-height: 360px;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.45;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .log-row {
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.25);
+      border-left: 3px solid #333;
+    }
+    .log-row.ok { border-left-color: var(--ok); color: #b8f0c8; }
+    .log-row.warn { border-left-color: var(--warn); color: #f0dcb8; }
+    .log-row.sys { border-left-color: #5588aa; color: #a8c0d0; }
+    .prob-bar {
+      display: flex;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      background: #1a1a1a;
+      margin-top: 8px;
+    }
+    .prob-bar span { display: block; height: 100%; }
+
+    .app-topbar {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 16px 10px;
+      margin: -20px -16px 20px;
+    }
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .brand-logo {
+      height: 36px;
+      width: auto;
+      max-width: 120px;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      line-height: 1.1;
+      color: var(--fg);
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    .brand-tag {
+      font-size: 11px;
+      color: var(--dim);
+      margin-top: 2px;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    .app-nav {
+      display: flex;
+      gap: 4px;
+    }
+    .app-nav a {
+      flex: 1;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-decoration: none;
+      color: var(--dim);
+      padding: 6px 8px;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    .app-nav a:hover {
+      color: var(--fg);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .app-nav a.active {
+      color: var(--accent);
+      background: rgba(0, 255, 204, 0.08);
+      border-color: rgba(0, 255, 204, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="app-topbar">
+      <div class="app-brand">
+        <img src="logostroke.png" alt="" class="brand-logo" width="36" height="36">
+        <div>
+          <div class="brand-name">ARMIC</div>
+          <div class="brand-tag">Wearable MQTT</div>
+        </div>
+      </div>
+      <nav class="app-nav" aria-label="App pages">
+        <a href="arm-simulator.html">Controller</a>
+        <a href="wearable-mqtt.html" class="active">Wearable</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+    </header>
+    <div class="banner">Temporary hackathon debug page — not part of the final product</div>
+    <h1>Wearable MQTT</h1>
+    <p class="sub">
+      Live feed from AI Node (M5 Core2 reference) → <code>uno-q.local:1883</code>
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Connection</h2>
+        <div id="wearableMqttStatus" class="status-pill busy">Connecting…</div>
+        <p class="meta" id="wearableMqttBroker" style="margin-top:10px;">Broker: —</p>
+        <p class="meta" id="wearableMqttCount">Messages: 0</p>
+      </div>
+      <div class="card">
+        <h2>Last inference</h2>
+        <div id="wearableMqttLast" class="big">—</div>
+        <div id="wearableMqttDetail" class="meta">Waiting for M5…</div>
+        <div id="wearableMqttProbs" class="prob-bar" hidden></div>
+      </div>
+      <div class="card full">
+        <h2>Event log</h2>
+        <div id="wearableMqttLog" class="log">
+          <div class="log-row sys">Listening for <code>wearable_mqtt</code> WebSocket events…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="libs/socket.io.min.js"></script>
+  <script src="libs/arduino.js"></script>
+  <script src="wearable-mqtt-debug.js"></script>
+</body>
+</html>

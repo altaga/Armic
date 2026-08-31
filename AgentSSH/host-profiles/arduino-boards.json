@@ -1,0 +1,40 @@
+{
+  "uno-q": {
+    "description": "Arduino UNO Q — dual-brain STM32U585 MCU + QRB2210 MPU (Linux with App Lab containers)",
+    "os": "Linux (Yocto-derived, App Lab container runtime)",
+    "board_family": "uno-q",
+    "baseline_packages": [
+      "python3",
+      "python3-pip",
+      "python3-venv",
+      "curl",
+      "wget",
+      "ca-certificates"
+    ],
+    "default_remote_workdir": "/data/armic",
+    "agent_cli_install_hint": "App Lab `brick compose` is the native container manager. Prefer `brick compose exec python <cmd>` over plain docker.",
+    "safety_assertions": {
+      "firmware_mcu_bin_flash_command_hint": "MCU sketch via `arduino-cli compile --fqbn arduino:mbed_nano:stm32u585xx` → deploy via `brick flash` or App Lab UI.",
+      "agent_container_list_command": "brick compose ps",
+      "calibration_ssot_path": "/data/armic/calibration.json",
+      "agent_tool_contract_endpoint": "http://localhost:8000/agent/health"
+    }
+  },
+  "m5core2-esp32": {
+    "description": "M5Stack Core2 ESP32 (ARMIC wearable, 6-topic MQTT publisher)",
+    "os": "FreeRTOS / ESP-IDF (flashed via Arduino IDE, not SSH)",
+    "board_family": "esp32",
+    "notes": [
+      "This profile is metadata-only. The M5 Core2 itself does not accept SSH — its MQTT broker lives on the UNO Q MPU python container at port 1883.",
+      "Use the `uno-q` host alias and run mosquitto_pub/_sub on the MPU python container to test the wearable envelope instead."
+    ]
+  },
+  "generic-linux-arduino-host": {
+    "description": "Catch-all for any SSH-reachable Linux board (Raspberry Pi, Orange Pi, other SBC) running an Arduino-compatible toolchain or hosting a USB-connected Arduino.",
+    "os": "Linux (generic)",
+    "board_family": "generic",
+    "notes": [
+      "If you have an Arduino board attached via USB serial to this host, install arduino-cli via board_setup then use `arduino-cli compile` / `arduino-cli upload` over ssh_exec."
+    ]
+  }
+}

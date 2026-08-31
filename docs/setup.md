@@ -23,14 +23,35 @@ PlatformIO may still be used during the port if you prefer; the **target board p
 
 ---
 
-## Host UI (planned)
+## App Lab deploy (production path)
 
-| Mode | Purpose |
-|------|---------|
-| Simulator | Offline digital twin (kinematics / torque) — no hardware |
-| Live control | Commands + telemetry mirror while MCU is connected |
+1. Copy `Arduino Files/` modules into `~/ArduinoApps/armic/` on the UNO Q (or use [AgentSSH/](AgentSSH/) `armic_deploy_bundle`).
+2. Start the app: `arduino-app-cli app start ~/ArduinoApps/armic`
+3. Open **`http://uno-q.local:7000`** — main UI, agent chat, calibration, wearable HUD.
+4. Optional: flash an [AI Node](Arduino%20Files/armic-ai-node/) and verify MQTT at `/wearable-mqtt.html`.
 
-Until App Lab / Bridge UI lands, use the **serial command set** in [serial-protocol.md](serial-protocol.md).
+Wiring and calibration: [bom.md](bom.md), [hardware.md](hardware.md), **Calibration policy** below.
+
+---
+
+## No board? Enter the Online Simulator
+
+**→ [onlinesimulator.expo.app](https://onlinesimulator.expo.app)**
+
+Open in any browser. Test arm commands and the 3D simulation — presets, joint sliders, rehab routes — same firmware math as UNO Q. No hardware required to explore.
+
+When you have a board, follow **App Lab deploy** above for the real system (`http://uno-q.local:7000`).
+
+---
+
+## Hackster contest assets (repo)
+
+| Asset | Path | Status |
+|-------|------|--------|
+| Breadboard wiring | `Images/Armic_bb.png` | In repo |
+| Fritzing source | `Images/Armic.fzz` | In repo — export **Schematic view → PNG** as `Images/Armic_sch.png` for Schematics panel |
+| UI screenshots | `Images/mainUI.png`, `testmqttUI.png`, `applab.png`, `agentready.png`, `warmingupagent.png` | In repo |
+| Demo GIFs | `Images/*.gif` | In repo |
 
 ---
 

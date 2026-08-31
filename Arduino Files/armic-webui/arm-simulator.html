@@ -1,0 +1,3488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Armic :: Arm Controller</title>
+<style>
+  :root {
+    --accent: #00d4b8;
+    --accent-dim: rgba(0, 212, 184, 0.12);
+    --warn: #e8a030;
+    --err: #e8456a;
+    --ok: #2ecc71;
+    --bg: #0a0c0b;
+    --panel: rgba(14, 16, 15, 0.94);
+    --panel-elevated: rgba(20, 22, 21, 0.98);
+    --line: #252a28;
+    --mut: #7a8480;
+    --text: #dce8e4;
+    --text-dim: #9aa8a2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    user-select: none;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: 100vh;
+  }
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 0;
+    overflow-y: auto;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-scroll {
+    padding: 14px 16px 24px;
+    flex: 1;
+  }
+  .canvas-wrap { position: relative; }
+  .canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+  h1 { font-size: 14px; margin: 0 0 8px; color: var(--accent); }
+  h2 {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 16px 0 8px;
+    color: var(--mut);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  h2.collapsible {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding: 6px 0 6px 16px;
+    margin-top: 18px;
+    line-height: 1.3;
+  }
+  h2.collapsible .sec-kicker {
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    color: #5c5c66;
+    margin-top: 2px;
+  }
+  h2.collapsible:hover { filter: brightness(1.12); }
+  h2.collapsible::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 11px;
+    width: 5px;
+    height: 5px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.2s;
+    opacity: 0.7;
+  }
+  h2.collapsible.active::before {
+    transform: rotate(45deg);
+    top: 10px;
+  }
+  .collapse-content {
+    display: none;
+    padding: 4px 0 4px 12px;
+    border-left: 2px solid #1a1a1a;
+    margin-left: 6px;
+    margin-bottom: 14px;
+  }
+  .collapse-content.active {
+    display: block;
+  }
+  h2.sec-claw { color: #00bbff; }
+  h2.sec-claw:hover { color: #66d4ff; }
+  h2.sec-claw + .collapse-content { border-left-color: #00bbff; }
+  h2.sec-poses { color: #7ec8e3; }
+  h2.sec-poses:hover { color: #a8dff0; }
+  h2.sec-poses + .collapse-content { border-left-color: #7ec8e3; }
+  h2.sec-dynamics { color: #ffaa00; }
+  h2.sec-dynamics:hover { color: #ffc44d; }
+  h2.sec-dynamics + .collapse-content { border-left-color: #ffaa00; }
+  h2.sec-sequences { color: #55aaff; }
+  h2.sec-sequences:hover { color: #88c4ff; }
+  h2.sec-sequences + .collapse-content { border-left-color: #55aaff; }
+  h2.sec-warmup { color: #6ec8b8; }
+  h2.sec-warmup:hover { color: #8ed8cc; }
+  h2.sec-warmup + .collapse-content { border-left-color: #6ec8b8; }
+  h2.sec-exercises { color: #9b7eed; }
+  h2.sec-exercises:hover { color: #b9a0f5; }
+  h2.sec-exercises + .collapse-content { border-left-color: #9b7eed; }
+  h2.sec-torque { color: #00ffcc; }
+  h2.sec-torque:hover { color: #66ffe0; }
+  h2.sec-torque + .collapse-content { border-left-color: #00ffcc; }
+  h2.sec-scene { color: #8a9ab8; }
+  h2.sec-scene:hover { color: #a8b8d0; }
+  h2.sec-scene + .collapse-content { border-left-color: #8a9ab8; }
+  h2.sec-manual { color: #e0c060; }
+  h2.sec-manual:hover { color: #ecd080; }
+  h2.sec-manual + .collapse-content { border-left-color: #e0c060; }
+  .hint {
+    font-size: 12px;
+    color: #8a8a96;
+    margin-bottom: 10px;
+    line-height: 1.55;
+  }
+  .section-lead {
+    font-size: 12px;
+    color: #9a9aa6;
+    margin-bottom: 12px;
+    line-height: 1.55;
+  }
+  .mono { font-family: "Consolas", "Courier New", monospace; }
+  .demo-card {
+    margin-bottom: 12px;
+    padding: 12px 12px 10px;
+    border: 1px solid #2a2a32;
+    border-radius: 6px;
+    border-left-width: 4px;
+    border-left-style: solid;
+    background: rgba(255, 255, 255, 0.025);
+  }
+  .demo-card .demo-title {
+    font-size: 13px;
+    margin-bottom: 6px;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-weight: 700;
+  }
+  .demo-card .demo-body {
+    font-size: 12px;
+    color: #b0b0ba;
+    margin-bottom: 10px;
+    line-height: 1.55;
+  }
+  .demo-card .demo-body strong { color: #dddde4; font-weight: 600; }
+  .demo-card .demo-meta {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 11px;
+    color: #8a8a98;
+    margin-bottom: 10px;
+    line-height: 1.45;
+    padding: 5px 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 4px;
+    border: 1px solid #222228;
+  }
+  .demo-card.accent-home { --a: #7ec8e3; border-left-color: var(--a); }
+  .demo-card.accent-home .demo-title { color: var(--a); }
+  .demo-card.accent-cpose { --a: #5ad4a0; border-left-color: var(--a); }
+  .demo-card.accent-cpose .demo-title { color: var(--a); }
+  .demo-card.accent-transport { --a: #e0a85c; border-left-color: var(--a); }
+  .demo-card.accent-transport .demo-title { color: var(--a); }
+  .demo-card.accent-htl { --a: #ffaa00; border-left-color: var(--a); }
+  .demo-card.accent-htl .demo-title { color: var(--a); }
+  .demo-card.accent-pend { --a: #ff7a59; border-left-color: var(--a); }
+  .demo-card.accent-pend .demo-title { color: var(--a); }
+  .demo-card.accent-gimme { --a: #ffcc44; border-left-color: var(--a); }
+  .demo-card.accent-gimme .demo-title { color: var(--a); }
+  .demo-card.accent-orb { --a: #00bbff; border-left-color: var(--a); }
+  .demo-card.accent-orb .demo-title { color: var(--a); }
+  .demo-card.accent-snake { --a: #55ff88; border-left-color: var(--a); }
+  .demo-card.accent-snake .demo-title { color: var(--a); }
+  .demo-card.accent-cobra { --a: #ff9f43; border-left-color: var(--a); }
+  .demo-card.accent-cobra .demo-title { color: var(--a); }
+  .demo-card.accent-dbup { --a: #6ec8b8; border-left-color: var(--a); }
+  .demo-card.accent-dbup .demo-title { color: var(--a); }
+  .demo-card.accent-dbdown { --a: #c8a86e; border-left-color: var(--a); }
+  .demo-card.accent-dbdown .demo-title { color: var(--a); }
+  .demo-card.accent-bicep { --a: #9b7eed; border-left-color: var(--a); }
+  .demo-card.accent-bicep .demo-title { color: var(--a); }
+  .demo-card.accent-lat { --a: #b08cff; border-left-color: var(--a); }
+  .demo-card.accent-lat .demo-title { color: var(--a); }
+  .demo-card.accent-elbow { --a: #c9a8ff; border-left-color: var(--a); }
+  .demo-card.accent-elbow .demo-title { color: var(--a); }
+  .stop-seq-bar {
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
+  }
+  .btn-stop-seq {
+    background: #3a1a1a;
+    border: 1px solid #c44;
+    color: #ff8888;
+    width: 100%;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  /* Floating local-LLM test chat */
+  .agent-chat-fab {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1200;
+    min-width: 52px;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 22px;
+    border: 1px solid rgba(0, 212, 184, 0.35);
+    background: var(--panel-elevated);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    font-family: inherit;
+  }
+  .agent-chat-fab:hover { background: #1a201e; }
+  .agent-chat-fab[aria-expanded="true"] {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+  }
+  .agent-chat-panel {
+    position: fixed;
+    right: 18px;
+    bottom: 82px;
+    z-index: 1199;
+    width: min(360px, calc(100vw - 36px));
+    height: min(420px, calc(100vh - 120px));
+    min-width: 300px;
+    min-height: 260px;
+    display: none;
+    flex-direction: column;
+    border: 1px solid #1f3f36;
+    border-radius: 10px;
+    background: rgba(8, 12, 11, 0.96);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+    overflow: hidden;
+  }
+  .agent-chat-panel.open { display: flex; }
+  .agent-chat-panel.expanded {
+    width: min(640px, calc(100vw - 24px));
+    height: min(82vh, calc(100vh - 88px));
+  }
+  .agent-chat-panel.expanded .agent-chat-bubble {
+    font-size: 13px;
+    padding: 10px 12px;
+    line-height: 1.5;
+  }
+  .agent-chat-panel.expanded .agent-chat-log {
+    padding: 14px;
+    gap: 10px;
+  }
+  .agent-chat-panel.expanded .agent-route-title { font-size: 13px; }
+  .agent-chat-panel.expanded .agent-route-meta { font-size: 12px; }
+  .agent-chat-resize-handle {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    z-index: 3;
+    border-radius: 10px 0 0 0;
+    background: linear-gradient(135deg, rgba(0, 212, 184, 0.35) 45%, transparent 46%);
+  }
+  .agent-chat-panel.expanded .agent-chat-resize-handle { display: block; }
+  .agent-chat-resize-handle:hover {
+    background: linear-gradient(135deg, rgba(0, 212, 184, 0.55) 45%, transparent 46%);
+  }
+  .agent-chat-head {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .agent-chat-head-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .agent-chat-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .agent-chat-icon-btn {
+    min-width: 30px;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #101010;
+    color: var(--mut);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .agent-chat-icon-btn:hover {
+    color: var(--accent);
+    border-color: rgba(0, 212, 184, 0.35);
+  }
+  .agent-chat-icon-btn[aria-pressed="true"] {
+    color: var(--accent);
+    border-color: rgba(0, 212, 184, 0.45);
+    background: rgba(0, 212, 184, 0.08);
+  }
+  .agent-chat-icon-btn .agent-chat-icon-shrink { display: none; }
+  .agent-chat-icon-btn[aria-pressed="true"] .agent-chat-icon-grow { display: none; }
+  .agent-chat-icon-btn[aria-pressed="true"] .agent-chat-icon-shrink { display: inline; }
+  .agent-chat-head-title {
+    font-weight: 700;
+  }
+  .agent-chat-presets {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .agent-chat-preset {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 10px;
+    min-height: 44px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #101010;
+    color: #e8e8ea;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    line-height: 1.2;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .agent-chat-preset:hover {
+    filter: brightness(1.12);
+  }
+  .agent-chat-preset.light {
+    border-color: rgba(0, 255, 102, 0.35);
+    color: #9dffb8;
+    background: rgba(0, 255, 102, 0.08);
+  }
+  .agent-chat-preset.medium {
+    border-color: rgba(255, 204, 0, 0.35);
+    color: #ffe08a;
+    background: rgba(255, 204, 0, 0.08);
+  }
+  .agent-chat-preset.heavy {
+    border-color: rgba(255, 68, 68, 0.35);
+    color: #ff9a9a;
+    background: rgba(255, 68, 68, 0.08);
+  }
+  .agent-chat-status {
+    font-size: 10px;
+    color: var(--mut);
+    margin-top: 3px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .agent-chat-status.busy { color: var(--warn); }
+  .agent-chat-status.err { color: var(--err); }
+  .agent-chat-status.ok { color: var(--ok); }
+  .agent-chat-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .agent-chat-bubble {
+    max-width: 92%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .agent-chat-bubble.user {
+    align-self: flex-end;
+    background: #123830;
+    color: #d8fff5;
+    border: 1px solid #1a6655;
+  }
+  .agent-chat-bubble.assistant {
+    align-self: flex-start;
+    background: #151515;
+    color: #e8e8ea;
+    border: 1px solid #2a2a2a;
+  }
+  .agent-chat-bubble.assistant.streaming { color: var(--mut); font-style: italic; }
+  .agent-chat-bubble.assistant.error { color: var(--err); border-color: #5a2230; }
+  .agent-route-intent {
+    font-size: 11px;
+    color: #b8b8c4;
+    border-left: 3px solid #9b7eed;
+  }
+  .agent-chat-routes {
+    align-self: flex-start;
+    max-width: 96%;
+    padding: 8px;
+    background: #151515;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .agent-route-card {
+    padding: 10px 12px;
+    border: 1px solid #2a2a32;
+    border-radius: 6px;
+    border-left: 4px solid #9b7eed;
+    background: rgba(155, 126, 237, 0.06);
+  }
+  .agent-route-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #c4b0f0;
+    margin-bottom: 4px;
+  }
+  .agent-route-meta {
+    font-size: 10px;
+    color: var(--mut);
+    line-height: 1.35;
+    margin-bottom: 10px;
+  }
+  .agent-route-execute {
+    width: 100%;
+    margin-top: 2px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 212, 184, 0.35);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .agent-route-execute:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+  .agent-route-execute:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+  .agent-chat-foot {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .agent-chat-foot input {
+    flex: 1;
+    background: #101010;
+    border: 1px solid #2a2a2a;
+    color: #e8e8ea;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font: inherit;
+  }
+  .agent-chat-foot button {
+    background: #123830;
+    border: 1px solid #1a6655;
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font: inherit;
+    cursor: pointer;
+  }
+  .agent-chat-foot button:disabled { opacity: 0.45; cursor: default; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 90px 1fr 58px 40px;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+  .row.ik-row {
+    grid-template-columns: 56px 1fr 56px;
+  }
+  .row label { font-size: 12px; color: #c0c0c8; }
+  .field-note {
+    color: #666;
+    font-weight: 400;
+    font-size: 10px;
+  }
+  .row input[type=range] { width: 100%; }
+  .row input[type=number].deg-in {
+    width: 100%;
+    min-width: 0;
+    padding: 4px 5px;
+    text-align: right;
+  }
+  .row .v {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 11px;
+    text-align: right;
+    color: #9a9aa6;
+  }
+  .v.ok    { color: var(--accent); }
+  .v.warn  { color: var(--warn); font-weight: 700; }
+  .v.err   { color: var(--err); font-weight: 700; }
+  input[type=number] {
+    background: #161616;
+    border: 1px solid var(--line);
+    color: var(--accent);
+    padding: 3px 5px;
+    font-family: inherit;
+    font-size: 11px;
+    width: 70px;
+    border-radius: 2px;
+  }
+  button {
+    background: #1a1a1a;
+    color: var(--accent);
+    border: 1px solid var(--line);
+    padding: 7px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  button:hover { background: #252528; }
+  button.primary { background: var(--accent); color: #001a14; border-color: var(--accent); font-weight: 700; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .status {
+    background: #0a0a0a;
+    border: 1px solid var(--line);
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.65;
+  }
+  .status .lbl { color: var(--mut); }
+  .status-ok { color: var(--ok); font-weight: 700; }
+  .status-warn { color: var(--warn); font-weight: 700; }
+  .restrictions {
+    background: #0a0a0a;
+    border: 1px solid var(--line);
+    padding: 8px;
+    border-radius: 2px;
+    font-size: 10px;
+    line-height: 1.7;
+  }
+  .restrictions .rname { color: var(--accent); }
+  .restrictions .rname.warn { color: var(--warn); }
+  .restrictions .rval { color: #e6e6ea; }
+  .legend {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(10, 10, 10, 0.85);
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    line-height: 1.55;
+    pointer-events: none;
+    color: #b8b8c0;
+  }
+  .legend-hint {
+    margin-top: 5px;
+    color: var(--mut);
+    font-size: 10px;
+  }
+  .viewhud {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(10, 10, 10, 0.88);
+    border: 1px solid var(--line);
+    border-left: 2px solid #9b7eed;
+    padding: 12px 14px;
+    font-size: 11px;
+    line-height: 1.45;
+    border-radius: 6px;
+    min-width: 200px;
+    max-width: 280px;
+    pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+  .viewhud.offline { border-left-color: #444; }
+  .viewhud.online { border-left-color: #9b7eed; }
+  .exercise-hud-kicker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--mut);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 6px;
+  }
+  .exercise-hud-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #444;
+    flex-shrink: 0;
+  }
+  .viewhud.online .exercise-hud-dot {
+    background: var(--ok);
+    box-shadow: 0 0 6px rgba(0, 255, 102, 0.4);
+  }
+  .exercise-hud-live {
+    font-size: 16px;
+    font-weight: 700;
+    color: #c4b0f0;
+    line-height: 1.2;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .exercise-hud-live.idle { color: var(--mut); font-weight: 600; font-size: 15px; }
+  .exercise-hud-live.active { color: #c4b0f0; font-size: 16px; }
+  .exercise-hud-phase {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-align: center;
+    margin: 2px 0 6px;
+    min-height: 14px;
+    color: var(--mut);
+  }
+  .exercise-hud-phase.arm { color: #c4b0f0; }
+  .exercise-hud-phase.patient { color: #ffcc44; font-size: 12px; }
+  .exercise-hud-phase.celebration { color: var(--ok); }
+  .exercise-hud-reps {
+    margin: 6px 0 10px;
+    text-align: center;
+  }
+  .exercise-hud-reps.hidden { display: none; }
+  .rep-number {
+    display: block;
+    font-size: 52px;
+    font-weight: 800;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  .legend .sw {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 1px;
+    vertical-align: middle;
+    margin-right: 3px;
+  }
+  .legend .sw-link { background: #b0b8b4; }
+  .legend .sw-axis { background: var(--accent); }
+  .legend .sw-tip { background: var(--ok); }
+  .legend .sw-ik { background: var(--warn); }
+  .dir-badge {
+    font-size: 9px;
+    padding: 0 3px;
+    border-radius: 1px;
+    margin-left: 3px;
+  }
+  .dir-D { background: #003322; color: var(--ok); }
+  .dir-I { background: #332200; color: var(--warn); }
+
+  /* Dashboard header — title through safety mode */
+  .dashboard-header {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 12px 10px;
+    margin-bottom: 14px;
+  }
+  .dashboard-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin: 0 0 12px;
+  }
+  .dashboard-section-label {
+    font-size: 10px;
+    color: var(--mut);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  .status-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  .status-chip {
+    display: grid;
+    grid-template-columns: 8px 52px 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 9px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid #1a1a1a;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .sanity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #444;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+    justify-self: center;
+  }
+  .sanity-dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(0, 255, 102, 0.35); }
+  .sanity-dot.warn { background: var(--warn); box-shadow: 0 0 8px rgba(255, 170, 0, 0.35); }
+  .sanity-dot.err { background: var(--err); box-shadow: 0 0 8px rgba(255, 51, 102, 0.35); }
+  .sanity-lbl {
+    color: var(--mut);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .sanity-val {
+    color: #d4d4d8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .safety-section {
+    padding-top: 10px;
+    border-top: 1px solid #1a1a1a;
+  }
+  .safety-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .safety-badge {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .safety-badge.dry {
+    background: rgba(38, 74, 38, 0.85);
+    color: #9f9;
+    border: 1px solid #2d5a2d;
+  }
+  .safety-badge.live {
+    background: rgba(90, 27, 27, 0.9);
+    color: #f99;
+    border: 1px solid #7a2a2a;
+  }
+  .safety-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--mut);
+    cursor: pointer;
+  }
+  .safety-toggle input {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .safety-hint {
+    font-size: 11px;
+    color: #6a6a72;
+    margin: 8px 0 0;
+    line-height: 1.45;
+  }
+  .safety-hint[hidden] { display: none; }
+  .manual-override-panel {
+    padding: 8px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #141418;
+    margin-bottom: 4px;
+  }
+  .manual-override-badge {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+  .manual-override-badge.live {
+    background: #1a2a3a;
+    color: #8ab4d4;
+    border: 1px solid #2a4055;
+  }
+  .manual-override-badge.preview {
+    background: #2a2818;
+    color: #e0c060;
+    border: 1px solid #4a4020;
+  }
+  .claw-panel {
+    padding: 12px;
+    border: 1px solid #2a3540;
+    border-radius: 6px;
+    background: #101418;
+    margin-bottom: 4px;
+  }
+  .claw-channel-label {
+    font-size: 11px;
+    color: #00bbff;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  .claw-help {
+    font-size: 11px;
+    color: #7a7a88;
+    margin-top: 6px;
+    line-height: 1.45;
+  }
+  .scope-label {
+    font-size: 11px;
+    color: var(--mut);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  .scope-legend {
+    font-size: 10px;
+    color: var(--mut);
+    margin-top: 4px;
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+  }
+  .scope-legend span { white-space: nowrap; }
+  .scope-dot-sh { color: #00ffcc; }
+  .scope-dot-el { color: #ffaa00; }
+  .scope-dot-wr { color: #ff3366; }
+  .scope-dot-wt { color: #55aaff; }
+  .controls-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line) 20%, var(--line) 80%, transparent);
+    margin: 4px 0 12px;
+  }
+  .home-quick-bar {
+    margin-bottom: 4px;
+  }
+  .home-quick-btn {
+    width: 100%;
+    padding: 11px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 6px;
+    cursor: pointer;
+    background: rgba(126, 200, 227, 0.12);
+    border: 1px solid rgba(126, 200, 227, 0.45);
+    color: #7ec8e3;
+  }
+  .home-quick-btn:hover {
+    background: rgba(126, 200, 227, 0.2);
+    border-color: rgba(126, 200, 227, 0.65);
+  }
+  .sidebar-group {
+    margin-bottom: 4px;
+  }
+  .sidebar-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--accent);
+    margin: 18px 0 4px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .sidebar-group-first .sidebar-group-label {
+    margin-top: 10px;
+    padding-top: 0;
+    border-top: none;
+  }
+  .sidebar-group-desc {
+    font-size: 11px;
+    color: var(--mut);
+    margin: 0 0 8px;
+    line-height: 1.4;
+  }
+  .sidebar-group h2.collapsible {
+    margin-top: 8px;
+  }
+  .sidebar-group h2.sec-routes { color: #c4b0f0; }
+  .sidebar-group h2.sec-routes:hover { color: #d8c8ff; }
+  .sidebar-group h2.sec-routes + .collapse-content { border-left-color: #c4b0f0; }
+  .route-card {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid #2a2a32;
+    border-radius: 6px;
+    border-left: 4px solid #9b7eed;
+    background: rgba(155, 126, 237, 0.06);
+  }
+  .route-card-title { font-size: 13px; font-weight: 700; color: #c4b0f0; margin-bottom: 4px; }
+  .route-card-meta { font-size: 11px; color: var(--mut); margin-bottom: 6px; line-height: 1.4; }
+  .route-card-steps {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 10px;
+    color: #8a8a98;
+    margin-bottom: 8px;
+    line-height: 1.45;
+  }
+  .route-status-bar {
+    font-size: 11px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    background: #141418;
+    border: 1px solid var(--line);
+    color: var(--mut);
+  }
+  .route-status-bar.active {
+    color: var(--accent);
+    border-color: rgba(0, 212, 184, 0.35);
+    background: rgba(0, 212, 184, 0.06);
+  }
+
+  /* Route progress strip — over 3D canvas */
+  .route-progress {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    z-index: 16;
+    min-width: 300px;
+    max-width: min(540px, 94vw);
+    padding: 12px 14px 10px;
+    background: rgba(8, 12, 11, 0.94);
+    border: 1px solid #1f3f36;
+    border-radius: 10px;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+  }
+  .route-progress.hidden { display: none; }
+  .route-progress-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .route-progress-head-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .route-progress-stop {
+    pointer-events: auto;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid rgba(255, 90, 90, 0.35);
+    border-radius: 6px;
+    background: rgba(255, 70, 70, 0.1);
+    color: #ff8a8a;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .route-progress-stop:hover {
+    background: rgba(255, 70, 70, 0.22);
+    border-color: rgba(255, 110, 110, 0.55);
+    color: #ffb0b0;
+  }
+  .route-progress-stop:active {
+    transform: scale(0.94);
+  }
+  .route-progress-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #c4b0f0;
+    letter-spacing: 0.02em;
+  }
+  .route-progress-step {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .route-progress-pills {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .route-pill {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 6px;
+    border-radius: 8px;
+    border: 1px solid #2a2a32;
+    background: rgba(0, 0, 0, 0.3);
+    text-align: center;
+    position: relative;
+  }
+  .route-pill-title {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #b8b8c4;
+    line-height: 1.2;
+  }
+  .route-pill-sub {
+    display: block;
+    font-size: 9px;
+    color: var(--mut);
+    margin-top: 2px;
+  }
+  .route-pill.active {
+    border-color: rgba(155, 126, 237, 0.6);
+    background: rgba(155, 126, 237, 0.14);
+    box-shadow: 0 0 12px rgba(155, 126, 237, 0.15);
+  }
+  .route-pill.active .route-pill-title { color: #e8dcff; }
+  .route-pill.done {
+    border-color: rgba(0, 212, 184, 0.35);
+    background: rgba(0, 212, 184, 0.08);
+  }
+  .route-pill.done .route-pill-title { color: var(--accent); }
+  .route-pill-check {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 10px;
+    color: var(--ok);
+    font-weight: 700;
+  }
+  .route-progress-banner {
+    display: none;
+    text-align: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+  }
+  .route-progress-banner.visible { display: block; }
+  .route-progress-banner.arm {
+    background: rgba(155, 126, 237, 0.12);
+    border-color: rgba(155, 126, 237, 0.35);
+  }
+  .route-progress-banner.patient {
+    background: rgba(255, 204, 0, 0.12);
+    border-color: rgba(255, 204, 0, 0.45);
+  }
+  .route-progress-banner.celebration {
+    background: rgba(0, 255, 102, 0.1);
+    border-color: rgba(0, 255, 102, 0.35);
+  }
+  #routeProgressBannerText {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+  }
+  .route-progress-banner.arm #routeProgressBannerText { color: #d8c8ff; }
+  .route-progress-banner.patient #routeProgressBannerText { color: #ffdd66; }
+  .route-progress-banner.celebration #routeProgressBannerText { color: #9dffb8; }
+  #routeProgressBannerSub {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #d8d8e0;
+  }
+  .route-progress-banner.patient #routeProgressBannerSub {
+    font-size: 14px;
+    color: #ffe08a;
+  }
+
+  /* App chrome — hackathon demo shell */
+  .app-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--panel-elevated);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 16px 10px;
+  }
+  .app-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .brand-logo {
+    height: 36px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+    display: block;
+    flex-shrink: 0;
+  }
+  .brand-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.14em;
+    line-height: 1.1;
+  }
+  .brand-tag {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+  }
+  .app-nav {
+    display: flex;
+    gap: 4px;
+  }
+  .app-nav a {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    color: var(--text-dim);
+    padding: 6px 8px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .app-nav a:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .app-nav a.active {
+    color: var(--accent);
+    background: var(--accent-dim);
+    border-color: rgba(0, 212, 184, 0.25);
+  }
+  @media (max-width: 768px) {
+    .layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+    .sidebar { max-height: 40vh; border-right: none; border-bottom: 1px solid var(--line); }
+    .viewhud { display: none; }
+  }
+</style>
+<!-- Armic: vendored locally so the station works with no internet access. -->
+<script src="libs/three.min.js"></script>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <header class="app-topbar">
+      <div class="app-brand">
+        <img src="logostroke.png" alt="" class="brand-logo" width="36" height="36">
+        <div>
+          <div class="brand-name">ARMIC</div>
+          <div class="brand-tag">Aether 4DOF · Rehab Controller</div>
+        </div>
+      </div>
+      <nav class="app-nav" aria-label="App pages">
+        <a href="arm-simulator.html" class="active">Controller</a>
+        <a href="wearable-mqtt.html">Wearable</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+    </header>
+
+    <div class="sidebar-scroll">
+    <section class="dashboard-header" aria-label="System status">
+      <p class="dashboard-subtitle">Rehab session flow: grip the load, warm up, run exercises. Demos and manual control are grouped below.</p>
+
+      <p class="dashboard-section-label">System status</p>
+      <div class="status-grid" id="sanityBar" aria-live="polite">
+        <div class="status-chip">
+          <span class="sanity-dot warn" id="bridgeSanityDot" title="Bridge"></span>
+          <span class="sanity-lbl">Bridge</span>
+          <span class="sanity-val" id="bridgeSanityText">checking…</span>
+        </div>
+        <div class="status-chip">
+          <span class="sanity-dot warn" id="mqttSanityDot" title="MQTT"></span>
+          <span class="sanity-lbl">MQTT</span>
+          <span class="sanity-val" id="mqttSanityText">checking…</span>
+        </div>
+      </div>
+
+      <div class="safety-section">
+        <p class="dashboard-section-label">Safety mode</p>
+        <div class="safety-row">
+          <span class="safety-badge dry" id="armicDryRunBadge">DRY RUN — motors gated</span>
+          <label class="safety-toggle" title="Toggle dry run — motors gated when on">
+            <input type="checkbox" id="armicDryRun" checked>
+            <span>Dry run</span>
+          </label>
+        </div>
+        <p class="safety-hint" id="armicDryRunHint">When on, servos stay gated — motion math, torque estimates, and the 3D sim still update.</p>
+      </div>
+    </section>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const dry = document.getElementById('armicDryRun');
+        if (dry) dry.addEventListener('change', () => ArmTransport.sendDryRun(dry.checked));
+      });
+    </script>
+
+    <div class="controls-divider" aria-hidden="true"></div>
+
+    <div class="home-quick-bar">
+      <button type="button" id="homeQuickBtn" class="home-quick-btn" title="Safe upright rest — 90/90/95/90">Return Home</button>
+    </div>
+
+    <div class="sidebar-group sidebar-group-first">
+      <p class="sidebar-group-label">Session setup</p>
+      <p class="sidebar-group-desc">Follow top to bottom before each rehab run.</p>
+      <h2 class="collapsible sec-claw">Claw Control<span class="sec-kicker">Instant gripper — always live</span></h2>
+          <div class="collapse-content">
+            <div class="claw-panel">
+              <p class="section-lead">Sends PWM to channel 4 immediately. Grab or release the dumbbell before exercises — no Execute step.</p>
+              <div class="claw-channel-label">ch4 · <span id="clawRangeLabel">236 closed → 440 open</span></div>
+              <div class="btns" style="margin-bottom: 10px;">
+                <button id="clawCloseBtn" style="flex:1;">Close</button>
+                <button id="clawMidBtn" style="flex:1;">Mid</button>
+                <button id="clawOpenBtn" class="primary" style="flex:1;">Open</button>
+              </div>
+              <div class="row">
+                <label>claw %</label>
+                <input type="range" id="clawSlider" min="0" max="100" step="1" value="100" title="0=closed 100=open">
+                <input type="number" class="deg-in" id="clawPctInput" min="0" max="100" step="1" value="100" title="0=closed 100=open">
+                <span class="v" id="clawVal">440</span>
+              </div>
+              <div class="claw-help">PWM map: <span id="clawHelpLabel">0%→236 closed · 50%→338 · 100%→440 open</span></div>
+            </div>
+          </div>
+      <h2 class="collapsible sec-torque">Torque & Load<span class="sec-kicker">Real-time forces — synced to firmware</span></h2>
+          <div class="collapse-content">
+            <p class="section-lead">Newton-Euler torques (static + dynamic) using MG90D/S @ 5V limits. Payload slider is for what-if math; “loaded” path weight comes from claw mid/closed plus dumbbell Load.</p>
+            <div class="row ik-row">
+              <label>Payload (kg) <span class="field-note">calc only</span></label>
+              <input type="range" id="payloadSlider" min="0" max="0.5" step="0.001" value="0">
+              <input type="number" id="payloadInput" value="0" step="0.001" min="0" max="0.5" style="width: 56px;">
+            </div>
+            <div class="row ik-row" style="margin-top:8px;">
+              <label>Dumbbell (g)</label>
+              <input type="number" id="dumbbellGramsInput" min="0" max="500" step="1" value="17" style="width: 56px;" title="Your dumbbell mass in grams">
+              <span class="v" id="dumbbellWeightStatus">17 g · not loaded</span>
+            </div>
+            <div class="btns" style="margin-top:6px;">
+              <button type="button" id="dumbbellLoadBtn" class="primary" style="flex:1;">Load</button>
+              <button type="button" id="dumbbellSaveBtn" style="flex:1;">Save</button>
+            </div>
+            <p class="hint" style="margin-top:8px;">Save stores dumbbell mass locally. Load applies it to payload, torque math, and the 3D model.</p>
+            <div class="status" id="torqueBox">
+              <div><span class="lbl">Shoulder τ:</span> <span id="tauSh" class="v ok">0.00 N·m</span> <span id="strainSh" class="v ok">(0%)</span></div>
+              <div><span class="lbl">Elbow τ:</span> <span id="tauEl" class="v ok">0.00 N·m</span> <span id="strainEl" class="v ok">(0%)</span></div>
+              <div><span class="lbl">Wrist τ:</span> <span id="tauWr" class="v ok">0.00 N·m</span> <span id="strainWr" class="v ok">(0%)</span></div>
+              <div><span class="lbl">Yoshikawa w:</span> <span id="wScore" class="v ok">0.00</span></div>
+              <div><span class="lbl">Posture Rating:</span> <span id="postureRating" class="status-ok">OPTIMAL</span></div>
+            </div>
+            <div style="margin-top: 10px;">
+              <div class="scope-label">Telemetry Oscilloscope</div>
+              <canvas id="scopeCanvas" width="296" height="80" style="width: 100%; height: 80px; background: #0a0a0a; border: 1px solid var(--line); border-radius: 2px; display: block;"></canvas>
+              <div class="scope-legend">
+                <span><span class="scope-dot-sh">●</span> Shoulder</span>
+                <span><span class="scope-dot-el">●</span> Elbow</span>
+                <span><span class="scope-dot-wr">●</span> Wrist</span>
+                <span><span class="scope-dot-wt">●</span> Watts</span>
+              </div>
+            </div>
+          </div>
+      <h2 class="collapsible sec-warmup">Warm-up<span class="sec-kicker">Pre-exercise dumbbell holds</span></h2>
+          <div class="collapse-content">
+            <p class="section-lead">Static curl positions for loading the dumbbell. Each command safe-homes first, then moves to the hold — same path logic as Home / Transport.</p>
+
+            <div class="demo-card accent-dbup">
+              <div class="demo-title">Dumbbell Up</div>
+              <div class="demo-body">Upright rest with load — identical to <strong>Home</strong>: joints near 90°, elbow at <strong>95°</strong> so gravity does not hunt the soft limit.</div>
+              <div class="demo-meta">base 90 · sh 90 · el 95 · wr 90</div>
+              <div class="btns"><button id="dumbbellUpBtn" class="primary" style="flex:1;">Dumbbell Up</button></div>
+            </div>
+
+            <div class="demo-card accent-dbdown">
+              <div class="demo-title">Dumbbell Down</div>
+              <div class="demo-body">Curl-down hold: shoulder forward, elbow fully folded, wrist pitched for the load. Use after grabbing the dumbbell with the claw.</div>
+              <div class="demo-meta">base 90 · sh 137 · el 180 · wr 135</div>
+              <div class="btns"><button id="dumbbellDownBtn" class="primary" style="flex:1;">Dumbbell Down</button></div>
+            </div>
+          </div>
+    </div>
+
+    <div class="sidebar-group">
+      <p class="sidebar-group-label">Rehab exercises</p>
+      <p class="sidebar-group-desc">Preset routes (3–6 reps) or run single exercises below.</p>
+      <h2 class="collapsible sec-routes">Rehab Routes<span class="sec-kicker">Light · Medium · Heavy</span></h2>
+          <div class="collapse-content">
+            <p class="section-lead">Light, Medium, and Heavy sessions using the three programmed exercises — Bicep Curl, Lateral Raise, Elbow Flexion. Ask chat to preview a plan; run from here when ready.</p>
+            <div id="routeStatusBar" class="route-status-bar idle">No route running.</div>
+            <div id="routeCards"></div>
+            <div class="btns" style="margin-top: 4px;">
+              <button type="button" id="routeStopBtn" style="flex:1;">Stop route</button>
+            </div>
+          </div>
+      <h2 class="collapsible sec-exercises">Exercises<span class="sec-kicker">Single exercise — default 6 reps</span></h2>
+          <div class="collapse-content">
+            <p class="section-lead">Each exercise runs <strong>6 reps</strong> on the front (+X) side except Elbow Flexion, which works on the −X (left) side. Reps 1–5 loop the same pair; rep 6 may chain extra waypoints.</p>
+
+            <div class="demo-card accent-bicep">
+              <div class="demo-title">Bicep Curl</div>
+              <div class="demo-body">Shoulder <strong>120°</strong> and elbow <strong>170°</strong> locked. Only the wrist curls tip-down ↔ tip-up — isolated tip flip without moving the elbow hinge.</div>
+              <div class="demo-meta">+X front · wrist 180° ↔ 25° · 6 reps · sh/el fixed</div>
+              <div class="btns"><button id="bicepDemoBtn" class="primary" style="flex:1;">Bicep Curl</button></div>
+            </div>
+
+            <div class="demo-card accent-lat">
+              <div class="demo-title">Lateral Raise</div>
+              <div class="demo-body">Two photo L-poses only: tip out ↔ tip down. Shoulder 90° and elbow 180° locked — same inverted-L column; only wrist tip direction changes.</div>
+              <div class="demo-meta">90/180/90 ↔ 90/180/180 · 6 reps · +X front</div>
+              <div class="btns"><button id="lateralDemoBtn" class="primary" style="flex:1;">Lateral Raise</button></div>
+            </div>
+
+            <div class="demo-card accent-elbow">
+              <div class="demo-title">Elbow Flexion</div>
+              <div class="demo-body">Only exercise on the <strong>−X (left)</strong> side — shoulder locked at <strong>0°</strong>. Elbow and wrist flex together: EF-EXT (0/95/90) ↔ EF-PEAK (0/180/180). Reps 1–5: EXT → PEAK → EXT. Rep 6 chains <strong>HTL-4 → HTL-5</strong> (no extra safe-home after).</div>
+              <div class="demo-meta">EF-EXT → EF-PEAK ×5 · rep 6: EXT → PEAK → EXT → PEAK → HTL-4 → HTL-5</div>
+              <div class="btns"><button id="elbowDemoBtn" class="primary" style="flex:1;">Elbow Flexion</button></div>
+            </div>
+          </div>
+    </div>
+
+    <div class="sidebar-group">
+      <p class="sidebar-group-label">Operator</p>
+      <p class="sidebar-group-desc">Fine control when you need it.</p>
+      <h2 class="collapsible sec-manual">Manual Control<span class="sec-kicker">Per-joint staging — Execute sends to arm</span></h2>
+          <div class="collapse-content">
+            <div class="manual-override-panel">
+              <label class="safety-toggle" title="Stage moves in the simulator before sending to the arm">
+                <input type="checkbox" id="manualOverride">
+                <span>Manual override</span>
+              </label>
+              <span class="manual-override-badge live" id="manualOverrideBadge">LIVE — arm drives sim</span>
+              <p class="section-lead" id="manualOverrideHint" style="margin-top:8px;margin-bottom:0;">
+                Joints only — drag sliders or type degrees, preview in the sim, then Execute. Claw stays live in the Claw Control section.
+              </p>
+              <div class="btns" style="margin-top:10px;">
+                <button type="button" id="manualExecuteBtn" class="primary" style="flex:1;" disabled>Execute on arm</button>
+              </div>
+            </div>
+            <p class="hint" style="margin-bottom:8px;margin-top:12px;">Left column = joint angle (°). Right column = PWM sent to the servo.</p>
+            <div class="row">
+              <label>base <span class="dir-badge dir-D" id="dir-badge-base">D</span></label>
+              <input type="range" id="baseSlider" min="100" max="500" step="1" value="300">
+              <input type="number" class="deg-in" id="baseDeg" min="0" max="180" step="0.1" value="90.0" title="degrees">
+              <span class="v" id="baseVal">300</span>
+            </div>
+            <div class="row">
+              <label>shoulder <span class="dir-badge dir-I" id="dir-badge-shoulder">I</span></label>
+              <input type="range" id="shoulderSlider" min="90" max="490" step="1" value="290">
+              <input type="number" class="deg-in" id="shoulderDeg" min="0" max="180" step="0.1" value="90.0" title="degrees">
+              <span class="v" id="shoulderVal">290</span>
+            </div>
+            <div class="row">
+              <label>elbow <span class="dir-badge dir-D" id="dir-badge-elbow">D</span></label>
+              <input type="range" id="elbowSlider" min="300" max="500" step="1" value="300">
+              <input type="number" class="deg-in" id="elbowDeg" min="90" max="180" step="0.1" value="90.0" title="degrees">
+              <span class="v" id="elbowVal">300</span>
+            </div>
+            <div class="row">
+              <label>wrist <span class="dir-badge dir-D" id="dir-badge-wrist">D</span></label>
+              <input type="range" id="wristSlider" min="100" max="500" step="1" value="300">
+              <input type="number" class="deg-in" id="wristDeg" min="0" max="180" step="0.1" value="90.0" title="degrees">
+              <span class="v" id="wristVal">300</span>
+            </div>
+          </div>
+    </div>
+
+    <div class="sidebar-group">
+      <p class="sidebar-group-label">Showcase demos</p>
+      <p class="sidebar-group-desc">Physics and motion highlights — not part of rehab.</p>
+      <h2 class="collapsible sec-poses">Named Poses<span class="sec-kicker">C pose and transport — checkpoint holds</span></h2>
+          <div class="collapse-content">
+            <p class="section-lead">Each pose homes first, then moves to the target. Use these as known checkpoints when chaining moves by name.</p>
+
+            <div class="demo-card accent-cpose">
+              <div class="demo-title">C Pose</div>
+              <div class="demo-body">Gentle open “C” in the sagittal plane — tip high and slightly forward. Showcase reach without folding into the floor or overloading the shoulder.</div>
+              <div class="demo-meta">base ~90 · sh ~55 · el ~155 · wr ~150</div>
+              <div class="btns"><button id="testPoseBtn" class="primary" style="flex:1;">C Pose</button></div>
+            </div>
+
+            <div class="demo-card accent-transport">
+              <div class="demo-title">Transport</div>
+              <div class="demo-body">Deep tuck for carrying load: upper arm vertical, forearm horizontal, tip straight down. Keeps payload close to the column — same carry pose used mid-way through Heavy Tucked Lift.</div>
+              <div class="demo-meta">base 90 · sh 90 · el 180 · wr 180 · tip ↓</div>
+              <div class="btns"><button id="transportPoseBtn" class="primary" style="flex:1;">Transport</button></div>
+            </div>
+          </div>
+      <h2 class="collapsible sec-dynamics">Demo Dynamics<span class="sec-kicker">One-shot physics demos — auto-finish then home</span></h2>
+          <div class="collapse-content">
+            <p class="section-lead">Finite moves that show torque, inertia, or packed-power strikes. Each runs once and returns to stable home when done.</p>
+
+            <div class="demo-card accent-htl">
+              <div class="demo-title">Heavy Tucked Lift</div>
+              <div class="demo-body">Five-waypoint lift in one continuous S-curve — synced joints, no pauses. Safe-homes first, then HTL-1 through HTL-5 (tip over column at HTL-4). Ends at home.</div>
+              <div class="demo-meta">HTL-1 (180,90,90) → HTL-2 (127,180,90) → HTL-3 (112,180,180) → HTL-4 (~30,180,180) → HTL-5 (90,90,90)</div>
+              <div class="btns"><button id="htlDemoBtn" class="primary" style="flex:1;">Heavy Tucked Lift</button></div>
+            </div>
+
+            <div class="demo-card accent-pend">
+              <div class="demo-title">Pendulum Swing</div>
+              <div class="demo-body">Dynamic torque demo: dip the elbow to build momentum, snap up, then brake into stable home. Uses inertia instead of a slow deadlift — watch shoulder and elbow strain on the scope.</div>
+              <div class="demo-meta">Extend → hold → dump → inertia swing → brake → home (el 95°)</div>
+              <div class="btns"><button id="psDemoBtn" class="primary" style="flex:1;">Pendulum Swing</button></div>
+            </div>
+
+            <div class="demo-card accent-gimme">
+              <div class="demo-title">Gimme Five</div>
+              <div class="demo-body">Single burst: coil → strike → retract → home. Same tuck-and-strike as Cobra Strike, but runs <strong>once</strong> — not a loop.</div>
+              <div class="demo-meta">1 strike · brief hold · stable home</div>
+              <div class="btns"><button id="cobraDemoBtn" class="primary" style="flex:1;">Gimme Five</button></div>
+            </div>
+          </div>
+      <h2 class="collapsible sec-sequences">Demo Sequences<span class="sec-kicker">Continuous loops — stop manually when done</span></h2>
+          <div class="collapse-content">
+            <p class="section-lead">Paths that keep running until you hit <strong>Stop Sequences</strong>. Good for stress tests and smooth-motion showcases.</p>
+
+            <div class="demo-card accent-orb">
+              <div class="demo-title">Orbital Scan</div>
+              <div class="demo-body">True Cartesian control: IK traces a slow vertical circle while keeping the hand level (pitch 0). Proves on-device path planning is a smooth O, not a flat joint sweep.</div>
+              <div class="demo-meta">Loop · 96 waypoints · ~6°/s joint advance</div>
+              <div class="btns"><button id="wipeDemoBtn" class="primary" style="flex:1;">Orbital Scan</button></div>
+            </div>
+
+            <div class="demo-card accent-snake">
+              <div class="demo-title">Snake Dance</div>
+              <div class="demo-body">Procedural joint-space wave: phase-shifted sines on base, shoulder, elbow, and wrist so fluid undulation travels down the links. Pure joint math — no IK.</div>
+              <div class="demo-meta">Loop · sine phases · low shoulder torque band</div>
+              <div class="btns"><button id="snakeDemoBtn" class="primary" style="flex:1;">Snake Dance</button></div>
+            </div>
+
+            <div class="demo-card accent-cobra">
+              <div class="demo-title">Cobra Strike</div>
+              <div class="demo-body">Coil → strike → retract on repeat. Extreme joint-space snap from a deep tuck. Runs as a <strong>continuous loop</strong> until Stop Sequences (Gimme Five is the same move, once).</div>
+              <div class="demo-meta">Loop · ~3 s pause between strikes</div>
+              <div class="btns"><button id="cobraLoopDemoBtn" class="primary" style="flex:1;">Cobra Strike</button></div>
+            </div>
+
+            <div class="stop-seq-bar">
+              <button id="stopDemoBtn" class="btn-stop-seq">Stop Sequences</button>
+            </div>
+          </div>
+    </div>
+
+    <div class="sidebar-group">
+      <p class="sidebar-group-label">View</p>
+      <p class="sidebar-group-desc">Camera only — does not move the arm.</p>
+      <h2 class="collapsible sec-scene">Scene Offset<span class="sec-kicker">Camera framing — does not move the arm</span></h2>
+          <div class="collapse-content">
+            <p class="section-lead">Shift the 3D scene in world space (1 unit = 25 mm). Use when the arm or dumbbell sits off-center in view.</p>
+            <div class="row">
+              <label>X <span class="dir-badge dir-D">+r</span></label>
+              <input type="range" id="worldOffsetX" min="-20" max="20" step="0.5" value="0">
+              <span class="v" id="worldOffsetXVal">+0.0</span>
+            </div>
+            <div class="row">
+              <label>Y <span class="dir-badge dir-D">up</span></label>
+              <input type="range" id="worldOffsetY" min="-12" max="4" step="0.5" value="-7.5">
+              <span class="v" id="worldOffsetYVal">-7.5</span>
+            </div>
+            <div class="row">
+              <label>Z <span class="dir-badge dir-D">fwd</span></label>
+              <input type="range" id="worldOffsetZ" min="-20" max="20" step="0.5" value="0">
+              <span class="v" id="worldOffsetZVal">+0.0</span>
+            </div>
+            <div class="btns" style="margin-top: 8px;">
+              <button id="worldOffsetReset" title="reset scene offsets to defaults">↺ scene</button>
+              <button id="viewReset" title="snap orbit camera back to defaults">↺ view</button>
+            </div>
+          </div>
+    </div>
+
+    </div><!-- .sidebar-scroll -->
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="three"></canvas>
+    <div class="legend">
+      <div><span class="sw sw-link"></span> link</div>
+      <div><span class="sw sw-axis"></span> joint axis</div>
+      <div><span class="sw sw-tip"></span> FK tip</div>
+      <div><span class="sw sw-ik"></span> IK target / claw</div>
+      <div class="legend-hint">Drag to orbit · scroll to zoom</div>
+    </div>
+    <div class="viewhud exercise-hud offline" id="viewHud" aria-live="polite">
+      <div class="exercise-hud-kicker">
+        <span class="exercise-hud-dot" id="exerciseHudDot"></span>
+        AI Node
+      </div>
+      <div class="exercise-hud-reps hidden" id="exerciseHudReps">
+        <span class="rep-number" id="exerciseRepNumber" aria-label="Current rep"></span>
+      </div>
+      <div class="exercise-hud-live idle" id="exerciseHudLive">Waiting…</div>
+    </div>
+    <div id="routeProgress" class="route-progress hidden" aria-live="polite">
+      <div class="route-progress-head">
+        <span class="route-progress-title" id="routeProgressTitle">Rehab route</span>
+        <div class="route-progress-head-right">
+          <span class="route-progress-step" id="routeProgressStep"></span>
+          <button type="button" id="routeProgressStop" class="route-progress-stop" title="End session" aria-label="End session">×</button>
+        </div>
+      </div>
+      <div class="route-progress-pills" id="routeProgressPills"></div>
+      <div class="route-progress-banner" id="routeProgressBanner">
+        <span id="routeProgressBannerText">YOUR TURN</span>
+        <span id="routeProgressBannerSub"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button id="agentChatFab" class="agent-chat-fab" type="button" title="Local LLM test chat" aria-expanded="false">Chat</button>
+<div id="agentChatPanel" class="agent-chat-panel" aria-hidden="true">
+  <div id="agentChatResize" class="agent-chat-resize-handle" title="Drag to resize"></div>
+  <div class="agent-chat-head">
+    <div class="agent-chat-head-top">
+      <div class="agent-chat-head-title">Armic agent</div>
+      <div class="agent-chat-head-actions">
+        <button id="agentChatExpand" type="button" class="agent-chat-icon-btn" title="Expand for reading" aria-label="Expand chat" aria-pressed="false">
+          <span class="agent-chat-icon-grow" aria-hidden="true">⤢</span>
+          <span class="agent-chat-icon-shrink" aria-hidden="true">⤡</span>
+        </button>
+      </div>
+    </div>
+    <div id="agentChatStatus" class="agent-chat-status busy">Warming up LLM…</div>
+    <div class="agent-chat-presets" role="group" aria-label="Routine intensity — tap to preview and execute">
+      <button type="button" class="agent-chat-preset light" data-route-id="light"
+        data-prompt="Patient is early in rehab — day 3 post-op, mild shoulder stiffness, no red flags. Please preview a light intro routine across Bicep Curl, Lateral Raise, and Elbow Flexion to gauge tolerance today.">Light</button>
+      <button type="button" class="agent-chat-preset medium" data-route-id="medium"
+        data-prompt="Patient tolerated light well last visit but reports 3/10 pain at end range on lateral raise. Ready for progression — please preview a medium rehab session with all three programmed exercises for today.">Medium</button>
+      <button type="button" class="agent-chat-preset heavy" data-route-id="heavy"
+        data-prompt="Patient has four weeks of rehab, clean form on medium, wants strengthening. Please preview a heavy session — maximum load on this arm; watch lateral raise fatigue and stop if form breaks down.">Heavy</button>
+    </div>
+  </div>
+  <div id="agentChatLog" class="agent-chat-log"></div>
+  <div class="agent-chat-foot">
+    <input id="agentChatInput" type="text" placeholder="Ask a follow-up, or try: switch to medium, why lateral raise?…" autocomplete="off" />
+    <button id="agentChatClear" type="button" class="agent-chat-clear" title="Clear chat history">Clear</button>
+    <button id="agentChatStop" type="button" disabled>Stop</button>
+    <button id="agentChatSend" type="button">Send</button>
+  </div>
+</div>
+
+<script src="pipeline.js"></script>
+<script src="s_curve.js"></script>
+<!-- Armic: Web Serial replaced by the web_ui WebSocket client. -->
+<script src="libs/socket.io.min.js"></script>
+<script src="libs/arduino.js"></script>
+<script src="sanity-ui.js"></script>
+<script src="exercise-hud.js"></script>
+<script src="route-progress.js"></script>
+<script src="rehab-routes.js"></script>
+<script src="transport.js"></script>
+<script src="calibration-client.js"></script>
+<script src="telemetry.js"></script>
+<script>
+// =========================================================================
+//  Joint restrictions (LOCKED — mirrors kinematics.h SOFT_MIN/MAX).
+// =========================================================================
+// Armic: `var` so this is reachable as window.RESTRICTIONS and can be patched
+// from calibration-client.js. These are fallbacks until /calibration resolves.
+var RESTRICTIONS = {
+  base:     { min:   0, max: 180 },
+  shoulder: { min:   0, max: 180 },
+  elbow:    { min:  90, max: 180 },   // Physical range: 90=straight to 180=folded
+  wrist:    { min:   0, max: 180 },
+};
+function inBand(j, d) {
+  const r = RESTRICTIONS[j];
+  return d >= r.min && d <= r.max;
+}
+
+// =========================================================================
+//  Joint conventions — verbatim from _armDigitalTwin.ts.
+// =========================================================================
+// Link lengths (mm) — MEASURED by user 2026-08-21.
+//   L0 = 30   base mounting plate top → shoulder pivot axis
+//   L1 = 90   shoulder axis → elbow axis (upper arm)
+//   L2 = 70   elbow axis → wrist axis (forearm)
+//   L3 = 50   wrist axis → gripper base (tool center point)
+// Floor offset (60 mm) is applied separately to the base so the arm sits
+// 60mm above the grid — keeps the visuals readable and matches reality.
+const L0 = 30, L1 = 90, L2 = 70, L3 = 50;
+const FLOOR_OFFSET_MM = 60;
+const DEG = Math.PI / 180;
+const RAD = 180 / Math.PI;
+
+function forwardKinematics(a) {
+  const baseRad = (a.base - 90.0) * DEG;
+  // Kinematics convention:
+  // shoulder: 90° = vertical up, 0° = horizontal forward
+  // elbow:    90° = straight, 180° = folded (relative to upper arm)
+  // wrist:    90° = straight (relative to forearm)
+  const shDir = (a.shoulder - 90.0) * DEG;
+  const elDir = shDir + (a.elbow - 90.0) * DEG;
+  const wrDir = elDir + (a.wrist - 90.0) * DEG;
+  const cSh = Math.cos(shDir), sSh = Math.sin(shDir);
+  const cEl = Math.cos(elDir), sEl = Math.sin(elDir);
+  const cWr = Math.cos(wrDir), sWr = Math.sin(wrDir);
+  const sh_r = L1 * sSh;
+  const sh_z = L0 + L1 * cSh;
+  const el_r = sh_r + L2 * sEl;
+  const el_z = sh_z + L2 * cEl;
+  const ee_r = el_r + L3 * sWr;
+  const ee_z = el_z + L3 * cWr;
+  return {
+    x:  ee_r * Math.cos(baseRad),
+    y: -ee_r * Math.sin(baseRad),
+    z:  ee_z + FLOOR_OFFSET_MM,
+    pitch: 90.0 - wrDir * RAD
+  };
+}
+
+/** Given elbow and wrist, solve shoulder so tool tip is on base column (x=y=0). */
+function shoulderForXyZero(elbow, wrist) {
+  const alpha = (elbow - 90) * DEG;
+  const gamma = (wrist - 90) * DEG;
+  const B = L2 * Math.sin(alpha) + L3 * Math.sin(alpha + gamma);
+  const A = L1 + L2 * Math.cos(alpha) + L3 * Math.cos(alpha + gamma);
+  const shDir0 = Math.atan2(-B, A);
+  let best = null;
+  for (let branch = 0; branch < 2; branch++) {
+    const shDir = shDir0 + branch * Math.PI;
+    let sh = 90 + shDir * RAD;
+    while (sh < 0) sh += 360;
+    while (sh >= 360) sh -= 360;
+    if (sh < 0 || sh > 180) continue;
+    const cand = { base: 90, shoulder: sh, elbow, wrist };
+    const f = forwardKinematics(cand);
+    if (Math.abs(f.x) < 0.5 && Math.abs(f.y) < 0.5) {
+      if (best === null || sh < best) best = sh;
+    }
+  }
+  return best;
+}
+
+function ikSolve(x, y, z, pitch_deg) {
+  const out = { status: 'OK', angles: null };
+  const r = Math.hypot(x, y);
+  if (r < 1e-3) { out.status = 'BASE_SINGULARITY'; return out; }
+  const base_deg    = Math.atan2(y, x) * RAD;
+  const target_base = 90.0 - base_deg;
+  const pitch = pitch_deg * DEG;
+  const z_local = z - FLOOR_OFFSET_MM;
+  const rw = r - L3 * Math.cos(pitch);
+  const zw = (z_local - L0) - L3 * Math.sin(pitch);
+  const D2 = rw*rw + zw*zw;
+  const D = Math.sqrt(D2);
+  const reachMax = L1 + L2;
+  const reachMin = Math.abs(L1 - L2);
+  if (D > reachMax + 1e-3) { out.status = 'UNREACHABLE'; return out; }
+  if (D < reachMin - 1e-3) { out.status = 'OUT_OF_RANGE'; return out; }
+  const cosE = Math.max(-1, Math.min(1, (D2 - L1*L1 - L2*L2) / (2 * L1 * L2)));
+  function wrap(d) { while (d < 0) d += 360; while (d >= 360) d -= 360; return d; }
+  const tryBranch = (ei) => {
+    const mathS = Math.atan2(zw, rw) - Math.atan2(L2 * Math.sin(ei), L1 + L2 * Math.cos(ei));
+    const mathW = pitch - mathS - ei;
+    const sh = wrap(180.0 - mathS * RAD);       // shoulder: 90°=vertical up
+    const el = wrap(90.0 + Math.abs(ei) * RAD);  // elbow: 90°=straight, 180°=folded
+    const wr = wrap(90.0 - mathW * RAD);         // wrist: 90°=straight with forearm
+    if (!inBand('shoulder', sh)) return null;
+    if (!inBand('elbow',    el)) return null;
+    if (!inBand('wrist',    wr)) return null;
+    const cand = { base: target_base, shoulder: sh, elbow: el, wrist: wr };
+    const f = forwardKinematics(cand);
+    if (Math.abs(f.z - z) > 0.5) return null;
+    if (Math.abs(Math.hypot(f.x, f.y) - r) > 0.5) return null;
+    return cand;
+  };
+  // Torque-Aware IK Pose Selection: evaluate candidate branches against payload torque
+  const candA = tryBranch(+Math.acos(cosE));
+  const candB = tryBranch(-Math.acos(cosE));
+  let sol = null;
+
+  if (candA && candB) {
+    const pSlider = document.getElementById('payloadSlider');
+    const pGrams = pSlider ? parseFloat(pSlider.value) : 0;
+    const tA = computeTorques(candA, pGrams);
+    const tB = computeTorques(candB, pGrams);
+    const maxStrainA = Math.max(tA.strainSh, tA.strainEl, tA.strainWr);
+    const maxStrainB = Math.max(tB.strainSh, tB.strainEl, tB.strainWr);
+    sol = maxStrainA <= maxStrainB ? candA : candB;
+  } else {
+    sol = candA || candB;
+  }
+
+  if (!sol) { out.status = 'JOINT_LIMIT'; return out; }
+  if (!inBand('base', sol.base)) { out.status = 'JOINT_LIMIT'; return out; }
+  out.angles = sol;
+  return out;
+}
+
+// =========================================================================
+//  Three.js scene
+// =========================================================================
+const SCENE_PER_MM = 0.04;
+const SCALE = SCENE_PER_MM;
+const canvas = document.getElementById('three');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0d0d);
+
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
+camera.position.set(0, 10, 15.75);
+camera.lookAt(0, 0, 0);
+
+const camState = {
+  target: new THREE.Vector3(0, 0, 0),
+  yaw:    Math.PI * 0.5,
+  pitch:  Math.PI / 6,
+  dist:   22.0,
+};
+function setupControls() {
+  let dragging = false, lastX = 0, lastY = 0;
+  const apply = () => {
+    const { target, yaw, pitch, dist } = camState;
+    camera.position.x = target.x + dist * Math.cos(pitch) * Math.cos(yaw);
+    camera.position.z = target.z + dist * Math.cos(pitch) * Math.sin(yaw);
+    camera.position.y = target.y + dist * Math.sin(pitch);
+    camera.lookAt(target);
+  };
+  apply();
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+  });
+  window.addEventListener('mouseup', () => dragging = false);
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    camState.yaw   -= (e.clientX - lastX) * 0.01;
+    camState.pitch -= (e.clientY - lastY) * 0.01;
+    camState.pitch = Math.max(-1.4, Math.min(1.4, camState.pitch));
+    lastX = e.clientX; lastY = e.clientY;
+    apply();
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camState.dist *= Math.exp(e.deltaY * 0.001);
+    camState.dist = Math.max(5, Math.min(80, camState.dist));
+    apply();
+  }, { passive: false });
+}
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+dirLight.position.set(10, 25, 10);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 1024;
+dirLight.shadow.mapSize.height = 1024;
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 60;
+dirLight.shadow.camera.left = -15;
+dirLight.shadow.camera.right = 15;
+dirLight.shadow.camera.top = 15;
+dirLight.shadow.camera.bottom = -15;
+dirLight.shadow.bias = -0.001;
+scene.add(dirLight);
+const rimLight = new THREE.DirectionalLight(0x00ffcc, 0.2);
+rimLight.position.set(-10, 5, -10);
+scene.add(rimLight);
+const fillLight = new THREE.DirectionalLight(0xffeedd, 0.15);
+fillLight.position.set(-5, 3, 8);
+scene.add(fillLight);
+
+const worldGroup = new THREE.Group();
+worldGroup.position.set(0, 0, 0);
+scene.add(worldGroup);
+
+const grid = new THREE.GridHelper(40, 40, 0x444444, 0x222222);
+worldGroup.add(grid);
+const axes = new THREE.AxesHelper(2);
+axes.position.y = 0.01;
+worldGroup.add(axes);
+
+const floorGeo = new THREE.PlaneGeometry(40, 40);
+const floorMatShadow = new THREE.ShadowMaterial({ opacity: 0.35 });
+const floor = new THREE.Mesh(floorGeo, floorMatShadow);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = 0.005;
+floor.receiveShadow = true;
+worldGroup.add(floor);
+
+const envelope = new THREE.Mesh(
+  new THREE.SphereGeometry((L1 + L2 + L3) * SCALE, 32, 24),
+  new THREE.MeshPhongMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.04, wireframe: true, depthWrite: false }),
+);
+envelope.position.y = (FLOOR_OFFSET_MM + L0) * SCALE;
+worldGroup.add(envelope);
+
+const sing = new THREE.Mesh(
+  new THREE.CylinderGeometry(1.5 * SCALE, 1.5 * SCALE, 8, 32, 1, true),
+  new THREE.MeshPhongMaterial({ color: 0xff3366, transparent: true, opacity: 0.06, depthWrite: false }),
+);
+sing.position.y = 4;
+worldGroup.add(sing);
+
+const targetGroup = new THREE.Group();
+targetGroup.visible = false;
+worldGroup.add(targetGroup);
+const triShape = new THREE.Shape();
+triShape.moveTo( 0.7, 0.0); triShape.lineTo(-0.4, 0.35); triShape.lineTo(-0.4, -0.35); triShape.closePath();
+const triGeom = new THREE.ShapeGeometry(triShape);
+const targetMat = new THREE.MeshPhongMaterial({ color: 0xffaa00, emissive: 0x884400, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+const targetTriangle = new THREE.Mesh(triGeom, targetMat);
+targetGroup.add(targetTriangle);
+const triEdges = new THREE.EdgesGeometry(triGeom);
+targetGroup.add(new THREE.LineSegments(triEdges, new THREE.LineBasicMaterial({ color: 0xffe680 })));
+const poleMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), new THREE.MeshPhongMaterial({ color: 0x884400, emissive: 0x442200 }));
+poleMesh.rotation.z = Math.PI / 2;
+poleMesh.position.x = -0.55;
+targetGroup.add(poleMesh);
+
+function updateTargetMarker(x_mm, y_mm, z_mm, pitch_deg = 0) {
+  targetGroup.position.set(x_mm * SCALE, z_mm * SCALE, y_mm * SCALE);
+  targetGroup.rotation.y = -Math.atan2(y_mm, x_mm);
+  targetTriangle.rotation.z = pitch_deg * Math.PI / 180;
+  targetGroup.visible = true;
+}
+
+const jointMat  = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.7, roughness: 0.35 });
+const armMat    = new THREE.MeshStandardMaterial({ color: 0xd0d0d0, metalness: 0.5, roughness: 0.25 });
+const linkMat   = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.4, roughness: 0.4 });
+const accentMatSh = new THREE.MeshStandardMaterial({ color: 0x00ffcc, wireframe: true, opacity: 0.5, transparent: true, emissive: 0x003322 });
+const accentMatEl = new THREE.MeshStandardMaterial({ color: 0x00ffcc, wireframe: true, opacity: 0.5, transparent: true, emissive: 0x003322 });
+const accentMatWr = new THREE.MeshStandardMaterial({ color: 0x00ffcc, wireframe: true, opacity: 0.5, transparent: true, emissive: 0x003322 });
+const fingerMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.3, roughness: 0.5 });
+const baseMat   = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.6, roughness: 0.3 });
+
+// Pedestal Riser Block (tapered: thin near joint, wide/normal near floor)
+const pedestalGroup = new THREE.Group();
+worldGroup.add(pedestalGroup);
+const pedestalH = FLOOR_OFFSET_MM * SCALE; // 2.4 units (60 mm)
+
+const floorPlateMat = new THREE.MeshStandardMaterial({ color: 0x1f232a, metalness: 0.5, roughness: 0.3 });
+const floorPlate = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.4, 0.12, 32), floorPlateMat);
+floorPlate.position.y = 0.06;
+floorPlate.castShadow = true;
+floorPlate.receiveShadow = true;
+pedestalGroup.add(floorPlate);
+
+const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x2d323b, metalness: 0.5, roughness: 0.35 });
+// Tapered frustum: radiusTop = 0.55 (thin near joint), radiusBottom = 2.0 (normal wide near floor)
+const pedestalStand = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 2.0, pedestalH - 0.12, 32), pedestalMat);
+pedestalStand.position.y = (pedestalH + 0.12) / 2;
+pedestalGroup.add(pedestalStand);
+
+const boltMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+const boltGeom = new THREE.CylinderGeometry(0.08, 0.08, 0.12, 8);
+const boltR = 1.95;
+for (let b = 0; b < 4; b++) {
+  const angle = (b * Math.PI) / 2 + Math.PI / 4;
+  const bolt = new THREE.Mesh(boltGeom, boltMat);
+  bolt.position.set(boltR * Math.cos(angle), 0.12, boltR * Math.sin(angle));
+  pedestalGroup.add(bolt);
+}
+
+const baseGroup = new THREE.Group();
+baseGroup.position.y = FLOOR_OFFSET_MM * SCALE;
+worldGroup.add(baseGroup);
+
+const l0Column = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.45, 0.55, L0 * SCALE, 24), armMat);
+l0Column.position.y = (L0 * SCALE) / 2;
+l0Column.castShadow = true;
+baseGroup.add(l0Column);
+
+const shoulderGroup = new THREE.Group();
+shoulderGroup.position.y = L0 * SCALE;
+baseGroup.add(shoulderGroup);
+shoulderGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 24), jointMat));
+shoulderGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), accentMatSh));
+const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, L1 * SCALE, 24), armMat);
+upperArm.position.y = (L1 * SCALE) / 2;
+upperArm.castShadow = true;
+shoulderGroup.add(upperArm);
+
+const elbowGroup = new THREE.Group();
+elbowGroup.position.y = L1 * SCALE;
+shoulderGroup.add(elbowGroup);
+elbowGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.45, 24, 24), jointMat));
+elbowGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.58, 16, 12), accentMatEl));
+const lowerArm = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, L2 * SCALE, 24), armMat);
+lowerArm.position.y = (L2 * SCALE) / 2;
+lowerArm.castShadow = true;
+elbowGroup.add(lowerArm);
+
+const wristGroup = new THREE.Group();
+wristGroup.position.y = L2 * SCALE;
+elbowGroup.add(wristGroup);
+wristGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.36, 20, 20), jointMat));
+wristGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.48, 16, 12), accentMatWr));
+const wristSegment = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, L3 * SCALE, 20), armMat);
+wristSegment.position.y = (L3 * SCALE) / 2;
+wristSegment.castShadow = true;
+wristGroup.add(wristSegment);
+
+const gripperGroup = new THREE.Group();
+gripperGroup.position.y = L3 * SCALE;
+wristGroup.add(gripperGroup);
+const gripperBase = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.25, 0.4), linkMat);
+gripperBase.position.y = 0.1; gripperGroup.add(gripperBase);
+
+const fingerGeom = new THREE.BoxGeometry(0.18, 0.5, 0.1);
+const finger1 = new THREE.Mesh(fingerGeom, fingerMat); finger1.position.set(0, 0.45, -0.3); gripperGroup.add(finger1);
+const finger2 = new THREE.Mesh(fingerGeom, fingerMat); finger2.position.set(0, 0.45, +0.3); gripperGroup.add(finger2);
+
+// Claw visual + command (ch4). 0%=closed PWM236, 100%=open PWM440.
+// Armic: `var` so these are reachable as window.CLAW_PWM_* and can be patched
+// from calibration-client.js once the saved gripper calibration arrives.
+var CLAW_PWM_CLOSED = 236, CLAW_PWM_OPEN = 440, CLAW_PWM_MID = 338;
+const CLAW_CLOSE_PCT = 10, CLAW_MID_PCT = 50, CLAW_OPEN_PCT = 100;
+let _clawPct = 100;
+let _clawTween = null;
+
+function clawEase(u) {
+  const t = Math.max(0, Math.min(1, u));
+  return t * t * (3 - 2 * t);
+}
+function clawPwmFromPct(pct) {
+  const p = Math.max(0, Math.min(100, Number(pct)));
+  return Math.round(CLAW_PWM_CLOSED + (p / 100) * (CLAW_PWM_OPEN - CLAW_PWM_CLOSED));
+}
+function updateClawActiveButtons(pct) {
+  const closeBtn = document.getElementById('clawCloseBtn');
+  const midBtn = document.getElementById('clawMidBtn');
+  const openBtn = document.getElementById('clawOpenBtn');
+  if (!closeBtn || !midBtn || !openBtn) return;
+  // Snap to nearest preset so only one button lights when near 0 / 50 / 100.
+  let active = null;
+  if (pct <= CLAW_CLOSE_PCT + 5) active = 'close';
+  else if (pct >= CLAW_OPEN_PCT - 15) active = 'open';
+  else if (Math.abs(pct - CLAW_MID_PCT) <= 15) active = 'mid';
+  closeBtn.classList.toggle('primary', active === 'close');
+  midBtn.classList.toggle('primary', active === 'mid');
+  openBtn.classList.toggle('primary', active === 'open');
+}
+function setClawVisual(pct) {
+  _clawPct = Math.max(0, Math.min(100, Number(pct)));
+  const pwm = clawPwmFromPct(_clawPct);
+  const spread = 0.10 + 0.22 * (_clawPct / 100);
+  finger1.position.z = -spread;
+  finger2.position.z = +spread;
+  const lab = document.getElementById('clawVal');
+  const sl = document.getElementById('clawSlider');
+  const pctIn = document.getElementById('clawPctInput');
+  if (lab) lab.textContent = String(pwm);
+  if (sl && document.activeElement !== sl) sl.value = String(Math.round(_clawPct));
+  if (pctIn && document.activeElement !== pctIn) pctIn.value = String(Math.round(_clawPct));
+  updateClawActiveButtons(_clawPct);
+}
+function tweenClaw(targetPct, sendHw) {
+  const target = Math.max(0, Math.min(100, Number(targetPct)));
+  if (_clawTween) { _clawTween.cancelled = true; _clawTween = null; }
+
+  const start = _clawPct;
+  const delta = target - start;
+  if (Math.abs(delta) < 0.5) {
+    setClawVisual(target);
+    if (sendHw && typeof ArmTransport !== 'undefined' && ArmTransport.connected) {
+      ArmTransport.sendGripper(target);
+    }
+    return;
+  }
+
+  const durationMs = Math.min(2000, Math.max(700, 500 + Math.abs(delta) * 12));
+  if (sendHw && typeof ArmTransport !== 'undefined' && ArmTransport.connected) {
+    ArmTransport.sendGripper(target);
+  }
+
+  const t0 = performance.now();
+  const token = { cancelled: false };
+  _clawTween = token;
+  const step = (now) => {
+    if (token.cancelled) return;
+    const u = Math.min(1, (now - t0) / durationMs);
+    setClawVisual(start + delta * clawEase(u));
+    if (u < 1) requestAnimationFrame(step);
+    else _clawTween = null;
+  };
+  requestAnimationFrame(step);
+}
+function setClawPercent(pct, sendHw) {
+  if (sendHw) tweenClaw(pct, true);
+  else setClawVisual(pct);
+}
+window.setClawPercent = setClawPercent;
+
+// Payload dumbbell — sits above the claw; hidden at 0 kg, scales up with load.
+const payloadDumbbellGroup = new THREE.Group();
+payloadDumbbellGroup.position.set(0, 0.78, 0);
+payloadDumbbellGroup.rotation.y = Math.PI / 2;
+const dumbbellMat = new THREE.MeshStandardMaterial({
+  color: 0x9aa3ad,
+  metalness: 0.75,
+  roughness: 0.28,
+});
+const dumbbellBar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.72, 10), dumbbellMat);
+dumbbellBar.rotation.x = Math.PI / 2;
+payloadDumbbellGroup.add(dumbbellBar);
+const dumbbellPlateGeom = new THREE.CylinderGeometry(0.22, 0.22, 0.12, 14);
+const dumbbellPlateL = new THREE.Mesh(dumbbellPlateGeom, dumbbellMat);
+dumbbellPlateL.rotation.x = Math.PI / 2;
+dumbbellPlateL.position.z = -0.4;
+payloadDumbbellGroup.add(dumbbellPlateL);
+const dumbbellPlateR = dumbbellPlateL.clone();
+dumbbellPlateR.position.z = 0.4;
+payloadDumbbellGroup.add(dumbbellPlateR);
+payloadDumbbellGroup.visible = false;
+gripperGroup.add(payloadDumbbellGroup);
+
+const PAYLOAD_MAX_KG = 0.5;
+const DUMBBELL_DEFAULT_G = 17;
+const DUMBBELL_G_STORAGE = 'armic_dumbbell_g';
+
+function getDumbbellGrams() {
+  const el = document.getElementById('dumbbellGramsInput');
+  const g = el ? parseFloat(el.value) : DUMBBELL_DEFAULT_G;
+  return Number.isFinite(g) ? Math.max(0, g) : DUMBBELL_DEFAULT_G;
+}
+
+function paintDumbbellWeightStatus(text) {
+  const el = document.getElementById('dumbbellWeightStatus');
+  if (el) el.textContent = text;
+}
+
+function setPayloadKg(kg, sendHw) {
+  const k = Math.max(0, Math.min(PAYLOAD_MAX_KG, Number(kg) || 0));
+  const pSlider = document.getElementById('payloadSlider');
+  const pInput = document.getElementById('payloadInput');
+  if (pSlider) pSlider.value = String(k);
+  if (pInput) pInput.value = k >= 0.01 ? k.toFixed(3) : String(k);
+  updatePayloadDumbbell(k);
+  if (sendHw && typeof ArmTransport !== 'undefined' && ArmTransport.connected) {
+    ArmTransport.sendPayload(k);
+  }
+}
+
+function updatePayloadDumbbell(kg) {
+  const load = Math.max(0, Number(kg) || 0);
+  if (load <= 0) {
+    payloadDumbbellGroup.visible = false;
+    return;
+  }
+  payloadDumbbellGroup.visible = true;
+  const g = load * 1000;
+  const refG = Math.max(1, getDumbbellGrams() || DUMBBELL_DEFAULT_G);
+  const ratio = Math.max(0.12, g / refG);
+  const s = 1.45 * Math.pow(ratio, 0.28);
+  payloadDumbbellGroup.scale.set(s, s, s);
+}
+window.updatePayloadDumbbell = updatePayloadDumbbell;
+window.setPayloadKg = setPayloadKg;
+
+function saveDumbbellWeight() {
+  const g = getDumbbellGrams();
+  try {
+    localStorage.setItem(DUMBBELL_G_STORAGE, String(g));
+    paintDumbbellWeightStatus(`Saved ${g} g`);
+  } catch (_) {
+    paintDumbbellWeightStatus('Save failed');
+  }
+}
+
+function loadDumbbellWeight() {
+  const g = getDumbbellGrams();
+  if (g <= 0) {
+    setPayloadKg(0, true);
+    paintDumbbellWeightStatus('Unloaded');
+    return;
+  }
+  const kg = g / 1000;
+  setPayloadKg(kg, true);
+  paintDumbbellWeightStatus(`Loaded ${g} g`);
+}
+
+function initDumbbellWeightUi() {
+  const gramsEl = document.getElementById('dumbbellGramsInput');
+  const loadBtn = document.getElementById('dumbbellLoadBtn');
+  const saveBtn = document.getElementById('dumbbellSaveBtn');
+  try {
+    const saved = localStorage.getItem(DUMBBELL_G_STORAGE);
+    if (saved != null && gramsEl) gramsEl.value = saved;
+  } catch (_) { /* ignore */ }
+  const g = getDumbbellGrams();
+  paintDumbbellWeightStatus(`${g} g · not loaded`);
+  setPayloadKg(0, false);
+  if (loadBtn) loadBtn.addEventListener('click', () => loadDumbbellWeight());
+  if (saveBtn) saveBtn.addEventListener('click', () => saveDumbbellWeight());
+}
+
+const tipMat = new THREE.MeshBasicMaterial({ color: 0x00ff66 });
+const tipMesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), tipMat);
+gripperGroup.add(tipMesh);
+
+const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+const arrowShaft = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.05, 0.05, 0.6, 12),
+  arrowMat,
+);
+arrowShaft.position.y = 0.55;
+gripperGroup.add(arrowShaft);
+const arrowHead = new THREE.Mesh(
+  new THREE.ConeGeometry(0.18, 0.4, 16),
+  arrowMat,
+);
+arrowHead.position.y = 1.05;
+gripperGroup.add(arrowHead);
+
+const sliders = {
+  base:     document.getElementById('baseSlider'),
+  shoulder: document.getElementById('shoulderSlider'),
+  elbow:    document.getElementById('elbowSlider'),
+  wrist:    document.getElementById('wristSlider'),
+};
+const valLabels = {
+  base:     document.getElementById('baseVal'),
+  shoulder: document.getElementById('shoulderVal'),
+  elbow:    document.getElementById('elbowVal'),
+  wrist:    document.getElementById('wristVal'),
+};
+const degInputs = {
+  base:     document.getElementById('baseDeg'),
+  shoulder: document.getElementById('shoulderDeg'),
+  elbow:    document.getElementById('elbowDeg'),
+  wrist:    document.getElementById('wristDeg'),
+};
+
+function getPWM() {
+  return {
+    base:     parseFloat(sliders.base.value),
+    shoulder: parseFloat(sliders.shoulder.value),
+    elbow:    parseFloat(sliders.elbow.value),
+    wrist:    parseFloat(sliders.wrist.value),
+  };
+}
+
+let _currentAngles = null;
+function getAngles() {
+  const pwm = getPWM();
+  if (typeof pwmToAngle === 'function') {
+    _currentAngles = {
+      base: pwmToAngle(pwm.base, 'base'),
+      shoulder: pwmToAngle(pwm.shoulder, 'shoulder'),
+      elbow: pwmToAngle(pwm.elbow, 'elbow'),
+      wrist: pwmToAngle(pwm.wrist, 'wrist')
+    };
+  } else {
+    _currentAngles = pwm; // Fallback
+  }
+  return _currentAngles;
+}
+
+function setAngles(a) {
+  _currentAngles = { ...a };
+  if (typeof angleToPwm === 'function') {
+    sliders.base.value     = angleToPwm(a.base, 'base');
+    sliders.shoulder.value = angleToPwm(a.shoulder, 'shoulder');
+    sliders.elbow.value    = angleToPwm(a.elbow, 'elbow');
+    sliders.wrist.value    = angleToPwm(a.wrist, 'wrist');
+  } else {
+    sliders.base.value     = a.base.toFixed(2);
+    sliders.shoulder.value = a.shoulder.toFixed(2);
+    sliders.elbow.value    = a.elbow.toFixed(2);
+    sliders.wrist.value    = a.wrist.toFixed(2);
+  }
+  updateLabels();
+}
+
+let _tween = null;
+Object.defineProperty(window, '_tween', {
+  get() { return _tween; },
+  set(v) { _tween = v; },
+  configurable: true,
+});
+function shortestArcDelta(fromDeg, toDeg) {
+  let d = ((toDeg - fromDeg) % 360 + 540) % 360 - 180;
+  return d;
+}
+function tweenToAngles(target, _ignoredDurationMs, onDone) {
+  if (typeof globalPipeline !== 'undefined' && globalPipeline.enabled) {
+    globalPipeline.enabled = false;
+    const cb = document.getElementById('pipelineEnable');
+    if (cb) cb.checked = false;
+  }
+  if (_tween) { _tween.cancelled = true; _tween = null; }
+  const start = getAngles();
+  const t0 = performance.now();
+  const deltas = {
+    base:     shortestArcDelta(start.base,     target.base),
+    shoulder: shortestArcDelta(start.shoulder, target.shoulder),
+    elbow:    shortestArcDelta(start.elbow,    target.elbow),
+    wrist:    shortestArcDelta(start.wrist,    target.wrist),
+  };
+  // Payload-Adaptive S-Curve Tuning: scale vMax, aMax, jMax down based on target torque strain
+  const pSlider = document.getElementById('payloadSlider');
+  const pGrams = pSlider ? parseFloat(pSlider.value) : 0;
+  const targetTorque = computeTorques(target, pGrams);
+  const maxStrain = Math.max(targetTorque.strainSh, targetTorque.strainEl, targetTorque.strainWr);
+  // Derating factor: 1.0 at 0% strain down to 0.40 at >= 100% strain
+  const scale = Math.max(0.40, Math.min(1.0, 1.0 - (maxStrain / 100.0) * 0.60));
+  const sCurveConfig = {
+    vMax: 250 * scale,
+    aMax: 1500 * scale,
+    jMax: 10000 * scale,
+  };
+  if (typeof ArmControl !== 'undefined' && ArmControl.isManualOverride && ArmControl.isManualOverride()) {
+    sCurveConfig.vMax *= 0.3;
+    sCurveConfig.aMax *= 0.3;
+    sCurveConfig.jMax *= 0.3;
+  }
+
+  const profiles = {};
+  for (const j of ['base', 'shoulder', 'elbow', 'wrist']) {
+    if (Math.abs(deltas[j]) < 1e-6) { profiles[j] = null; continue; }
+    profiles[j] = new SCurveLib.SCurveProfile(deltas[j], sCurveConfig);
+  }
+  let longestTime = 0;
+  for (const j of Object.keys(profiles)) {
+    if (profiles[j] && profiles[j].totalTime > longestTime) {
+      longestTime = profiles[j].totalTime;
+    }
+  }
+  const t = { cancelled: false };
+  _tween = t;
+  const slowMo = document.getElementById('slowMoCheck')?.checked;
+  
+  const step = (now) => {
+    if (t.cancelled) return;
+    let elapsed = (now - t0) / 1000;
+    if (slowMo) elapsed /= 10.0;
+    
+    const cur = { ...start };
+    for (const j of ['base', 'shoulder', 'elbow', 'wrist']) {
+      const p = profiles[j];
+      if (!p) continue;
+      cur[j] = start[j] + p.positionAt(elapsed);
+    }
+    setAngles(cur);
+    if (elapsed < longestTime) requestAnimationFrame(step);
+    else {
+      _tween = null;
+      if (typeof onDone === 'function') onDone();
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+function updateLabels() {
+  const pwm = getPWM();
+  const a = getAngles();
+  for (const j of ['base', 'shoulder', 'elbow', 'wrist']) {
+    if (valLabels[j]) {
+      valLabels[j].textContent = String(Math.round(pwm[j]));
+      valLabels[j].classList.toggle('warn', !inBand(j, a[j]));
+    }
+    const degIn = degInputs[j];
+    if (degIn && document.activeElement !== degIn) {
+      degIn.value = a[j].toFixed(1);
+      degIn.classList.toggle('warn', !inBand(j, a[j]));
+    }
+  }
+  const violation = (j) => !inBand(j, a[j]);
+  const LINK_OK = 0xc8c8c8, LINK_BAD = 0xff3366;
+  upperArm.material.color.setHex(violation('shoulder') ? LINK_BAD : LINK_OK);
+  lowerArm.material.color.setHex(violation('elbow') ? LINK_BAD : LINK_OK);
+  wristSegment.material.color.setHex(violation('wrist') ? LINK_BAD : LINK_OK);
+}
+
+function updateArm() {
+  const a = getAngles();
+  baseGroup.rotation.y     = (a.base - 90.0) * DEG;
+  shoulderGroup.rotation.z = (90.0 - a.shoulder) * DEG;
+  elbowGroup.rotation.z    = -(a.elbow - 90.0) * DEG;   // 90°=straight, folds clockwise
+  wristGroup.rotation.z    = (90.0 - a.wrist) * DEG;
+  return a;
+}
+
+let _target = null;
+
+// =========================================================================
+//  Physical constants — synced to C++ firmware (kinematics.cpp line 288-291)
+//  These values MUST match the real hardware. Measured 2026-08-21.
+// =========================================================================
+
+// Link masses (kg) — includes PLA bracket + servo body mounted on each link.
+// Weighed on digital scale. Matches C++ M1/M2/M3 in estimate_torques().
+const M1 = 0.080;  // Upper arm: PLA bracket (~30g) + MG90D at elbow (~13g) + horn/screws (~7g) + wiring (~5g) + shoulder servo body (~25g)
+const M2 = 0.050;  // Forearm:   PLA bracket (~20g) + MG90D at wrist (~13g) + horn/screws (~5g) + wiring (~2g) + elbow servo casing (~10g)
+const M3 = 0.030;  // Wrist/TCP: PLA bracket (~10g) + gripper mechanism (~12g) + fasteners (~3g) + wrist servo horn (~5g)
+
+// Center-of-mass offset from the proximal joint (mm). Estimated at ~50% of
+// link length for uniform-density PLA plus the servo lump near the distal end.
+const R_CM1 = 45.0;  // 50% of L1 (90mm)
+const R_CM2 = 35.0;  // 50% of L2 (70mm)
+const R_CM3 = 25.0;  // 50% of L3 (50mm)
+
+const G_ACCEL = 9.81; // m/s²
+
+// =========================================================================
+//  MG90D / MG90S servo specifications — TowerPro datasheet values @ 5.0V
+//  (PCA9685 rail voltage, measured with multimeter)
+// =========================================================================
+// MG90D (digital, metal gear, dual ball bearing):
+//   Stall torque @ 4.8V: 2.1 kg·cm (0.2059 N·m)
+//   Stall torque @ 6.0V: 2.4 kg·cm (0.2353 N·m)
+//   Interpolated  @ 5.0V: ~2.15 kg·cm (0.2108 N·m)
+//   Stall current @ 5.0V: ~800 mA (measured)
+//   No-load current:      ~30 mA
+//   Weight: 13.4g
+//
+// MG90S (analog, metal gear):
+//   Stall torque @ 4.8V: 1.8 kg·cm (0.1765 N·m)
+//   Stall torque @ 6.0V: 2.2 kg·cm (0.2157 N·m)
+//   Interpolated  @ 5.0V: ~1.9 kg·cm (0.1863 N·m)
+//   Stall current @ 5.0V: ~700 mA (measured)
+//   No-load current:      ~30 mA
+//   Weight: 13.4g
+//
+// Joint assignments:
+//   Base (ch0):     MG90S  — horizontal yaw, minimal gravity load
+//   Shoulder (ch1): MG90D  — primary gravity-bearing joint
+//   Elbow (ch2):    MG90D  — secondary gravity-bearing joint
+//   Wrist (ch3):    MG90S  — light load, orientation only
+const STALL_TORQUE_NM = {
+  base:     0.1863,   // MG90S @ 5.0V → 1.90 kg·cm
+  shoulder: 0.2108,   // MG90D @ 5.0V → 2.15 kg·cm
+  elbow:    0.2108,   // MG90D @ 5.0V → 2.15 kg·cm
+  wrist:    0.1863,   // MG90S @ 5.0V → 1.90 kg·cm
+};
+
+const SAFETY_FACTOR = 0.80; // 80% continuous duty derating (prevents thermal shutdown)
+const MAX_SAFE_TORQUE_NM = {
+  base:     STALL_TORQUE_NM.base     * SAFETY_FACTOR, // 0.1490 N·m (1.52 kg·cm)
+  shoulder: STALL_TORQUE_NM.shoulder * SAFETY_FACTOR,  // 0.1686 N·m (1.72 kg·cm)
+  elbow:    STALL_TORQUE_NM.elbow    * SAFETY_FACTOR,  // 0.1686 N·m (1.72 kg·cm)
+  wrist:    STALL_TORQUE_NM.wrist    * SAFETY_FACTOR,  // 0.1490 N·m (1.52 kg·cm)
+};
+
+// Stall current draw per servo (mA @ 5.0V) — measured with inline ammeter
+const STALL_MA = { base: 700, shoulder: 800, elbow: 800, wrist: 700 };
+const IDLE_MA = 30.0; // No-load quiescent draw per servo
+
+function computeTorques(angles, payloadKg, accels = {shoulder:0, elbow:0, wrist:0}) {
+  const m_p = payloadKg;
+
+  // Cumulative world-frame tilt of each link from vertical (radians)
+  // Convention synced to C++ (kinematics.cpp line 296-298):
+  //   phi1 = shoulder tilt from vertical
+  //   phi2 = phi1 + elbow fold (C++ uses raw elbow angle, not offset by 90)
+  //   phi3 = phi2 + wrist fold from forearm
+  const phi1 = (angles.shoulder - 90.0) * DEG;
+  const phi2 = phi1 + (angles.elbow - 90.0) * DEG; 
+  const phi3 = phi2 + (angles.wrist - 90.0) * DEG;
+
+  const s1 = Math.sin(phi1), s2 = Math.sin(phi2), s3 = Math.sin(phi3);
+  const c1 = Math.cos(phi1), c2 = Math.cos(phi2), c3 = Math.cos(phi3);
+
+  // Convert link lengths and CM offsets to meters for N·m output
+  const l1m = L1 / 1000.0, l2m = L2 / 1000.0, l3m = L3 / 1000.0;
+  const r1m = R_CM1 / 1000.0, r2m = R_CM2 / 1000.0, r3m = R_CM3 / 1000.0;
+
+  // -----------------------------------------------------------------------
+  //  Dynamic Torque contribution: τ_dyn = I·α = (m·r²)·α
+  //  where r = distance from joint axis to payload, α = angular acceleration
+  //  This adds the inertial load from accelerating/decelerating the payload.
+  // -----------------------------------------------------------------------
+  const rx3 = l1m * s1 + l2m * s2 + l3m * s3;
+  const ry3 = l1m * c1 + l2m * c2 + l3m * c3;
+  const r_sh2 = rx3*rx3 + ry3*ry3;
+  const tauDynSh = m_p * r_sh2 * accels.shoulder;
+
+  const rx2 = l2m * s2 + l3m * s3;
+  const ry2 = l2m * c2 + l3m * c3;
+  const r_el2 = rx2*rx2 + ry2*ry2;
+  const tauDynEl = m_p * r_el2 * accels.elbow;
+
+  const tauDynWr = m_p * (l3m*l3m) * accels.wrist;
+
+  // -----------------------------------------------------------------------
+  //  Static Gravity Torque: τ = Σ(m_i · g · horizontal_distance_from_joint)
+  //  Recursive Newton-Euler for a planar serial chain. Each joint bears the
+  //  weight of all distal links plus the payload.
+  //  Matches C++ kinematics.cpp lines 306-308 exactly.
+  // -----------------------------------------------------------------------
+  const tauWr = Math.abs(G_ACCEL * (M3 * r3m * s3 + m_p * l3m * s3))
+              + Math.abs(tauDynWr);
+
+  const tauEl = Math.abs(G_ACCEL * (
+    M2 * r2m * s2 +
+    M3 * (l2m * s2 + r3m * s3) +
+    m_p * (l2m * s2 + l3m * s3)
+  )) + Math.abs(tauDynEl);
+
+  const tauSh = Math.abs(G_ACCEL * (
+    M1 * r1m * s1 +
+    M2 * (l1m * s1 + r2m * s2) +
+    M3 * (l1m * s1 + l2m * s2 + r3m * s3) +
+    m_p * (l1m * s1 + l2m * s2 + l3m * s3)
+  )) + Math.abs(tauDynSh);
+
+  // Strain percentage against 80% max safe operating limits
+  const strainSh = (tauSh / MAX_SAFE_TORQUE_NM.shoulder) * 100.0;
+  const strainEl = (tauEl / MAX_SAFE_TORQUE_NM.elbow)    * 100.0;
+  const strainWr = (tauWr / MAX_SAFE_TORQUE_NM.wrist)    * 100.0;
+
+  // -----------------------------------------------------------------------
+  //  PCA9685 5V Electrical Telemetry
+  //  Linear torque-to-current model: I = I_idle + (τ/τ_stall) × (I_stall - I_idle)
+  // -----------------------------------------------------------------------
+  const curSh   = IDLE_MA + (tauSh / STALL_TORQUE_NM.shoulder) * (STALL_MA.shoulder - IDLE_MA);
+  const curEl   = IDLE_MA + (tauEl / STALL_TORQUE_NM.elbow)    * (STALL_MA.elbow    - IDLE_MA);
+  const curWr   = IDLE_MA + (tauWr / STALL_TORQUE_NM.wrist)    * (STALL_MA.wrist    - IDLE_MA);
+  const curBase = IDLE_MA + 0.05 * (STALL_MA.base - IDLE_MA); // Base barely loaded (horizontal yaw)
+  const totalMa    = curSh + curEl + curWr + curBase;
+  const totalAmps  = totalMa / 1000.0;
+  const powerWatts = 5.0 * totalAmps;
+  const psuLoadPct = (totalAmps / 5.0) * 100.0;
+
+  // -----------------------------------------------------------------------
+  //  Yoshikawa Manipulability index w = √det(J·Jᵀ)
+  //  Planar 3-DOF Jacobian (uses cumulative world-frame angles)
+  // -----------------------------------------------------------------------
+  const jl1 = L1 / 100.0, jl2 = L2 / 100.0, jl3 = L3 / 100.0;
+  const J = [
+    [ jl1 * c1,  jl2 * c2,  jl3 * c3],
+    [-jl1 * s1, -jl2 * s2, -jl3 * s3]
+  ];
+  const a00 = J[0][0]*J[0][0] + J[0][1]*J[0][1] + J[0][2]*J[0][2];
+  const a01 = J[0][0]*J[1][0] + J[0][1]*J[1][1] + J[0][2]*J[1][2];
+  const a11 = J[1][0]*J[1][0] + J[1][1]*J[1][1] + J[1][2]*J[1][2];
+  const w = Math.sqrt(Math.max(0.0, a00 * a11 - a01 * a01));
+
+  return { tauSh, tauEl, tauWr, strainSh, strainEl, strainWr, w, totalAmps, totalMa, powerWatts, psuLoadPct };
+}
+
+let _dynLastAngles = null;
+let _dynLastVels = null;
+let _dynLastTime = 0;
+let _dynAccels = { shoulder: 0, elbow: 0, wrist: 0 };
+function getDynamicAccels(angles, now) {
+  const dt = (now - _dynLastTime) / 1000.0;
+  if (!_dynLastAngles || dt > 0.1) {
+    _dynLastAngles = { ...angles }; _dynLastVels = null; _dynLastTime = now;
+    _dynAccels = { shoulder: 0, elbow: 0, wrist: 0 };
+    return _dynAccels;
+  }
+  if (dt < 0.005) {
+    return _dynAccels; // Protect against microsecond double-calls exploding the derivative
+  }
+  const vels = {
+    shoulder: (angles.shoulder - _dynLastAngles.shoulder) * RAD / dt,
+    elbow: (angles.elbow - _dynLastAngles.elbow) * RAD / dt,
+    wrist: (angles.wrist - _dynLastAngles.wrist) * RAD / dt
+  };
+  if (!_dynLastVels) {
+    _dynLastAngles = { ...angles }; _dynLastVels = vels; _dynLastTime = now;
+    return _dynAccels;
+  }
+  const clampA = (a) => Math.max(-50.0, Math.min(50.0, a));
+  const accels = {
+    shoulder: clampA((vels.shoulder - _dynLastVels.shoulder) / dt),
+    elbow: clampA((vels.elbow - _dynLastVels.elbow) / dt),
+    wrist: clampA((vels.wrist - _dynLastVels.wrist) / dt)
+  };
+  
+  _dynAccels.shoulder = _dynAccels.shoulder * 0.50 + accels.shoulder * 0.50;
+  _dynAccels.elbow    = _dynAccels.elbow    * 0.50 + accels.elbow    * 0.50;
+  _dynAccels.wrist    = _dynAccels.wrist    * 0.50 + accels.wrist    * 0.50;
+  
+  _dynLastAngles = { ...angles }; _dynLastVels = vels; _dynLastTime = now;
+  return _dynAccels;
+}
+
+// =========================================================================
+//  Telemetry Oscilloscope — scrolling waveform display
+// =========================================================================
+const SCOPE_LEN = 200;
+const scopeData = {
+  sh: new Float32Array(SCOPE_LEN),
+  el: new Float32Array(SCOPE_LEN),
+  wr: new Float32Array(SCOPE_LEN),
+  watts: new Float32Array(SCOPE_LEN),
+};
+let scopeIdx = 0;
+function scopePush(sh, el, wr, watts) {
+  const i = scopeIdx % SCOPE_LEN;
+  scopeData.sh[i] = sh;
+  scopeData.el[i] = el;
+  scopeData.wr[i] = wr;
+  scopeData.watts[i] = watts;
+  scopeIdx++;
+}
+function scopeDraw() {
+  const cv = document.getElementById('scopeCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // Grid lines
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 0.5;
+  for (let gy = 0; gy < h; gy += h / 4) {
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+  }
+
+  // Scale labels
+  ctx.fillStyle = '#333';
+  ctx.font = '8px monospace';
+  ctx.fillText('100%', 2, 12);
+  ctx.fillText('50%', 2, h / 2 + 4);
+  ctx.fillText('0%', 2, h - 3);
+
+  const colors = ['#00ffcc', '#ffaa00', '#ff3366', '#55aaff'];
+  const keys = ['sh', 'el', 'wr', 'watts'];
+  const maxVals = [120, 120, 120, 5]; // Max scale for each channel
+
+  for (let c = 0; c < 4; c++) {
+    const buf = scopeData[keys[c]];
+    const maxV = maxVals[c];
+    ctx.strokeStyle = colors[c];
+    ctx.lineWidth = 1.2;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    for (let i = 0; i < SCOPE_LEN; i++) {
+      const di = (scopeIdx - SCOPE_LEN + i + SCOPE_LEN * 2) % SCOPE_LEN;
+      const v = Math.min(buf[di], maxV) / maxV;
+      const px = (i / SCOPE_LEN) * w;
+      const py = h - v * (h - 4) - 2;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1.0;
+}
+
+function render() {
+  const a = updateArm();
+  const f = forwardKinematics(a);
+
+  const pSlider = document.getElementById('payloadSlider');
+  const payload = pSlider ? parseFloat(pSlider.value) : 0;
+  updatePayloadDumbbell(payload);
+  
+  const now = performance.now();
+  const accels = getDynamicAccels(a, now);
+  const t = computeTorques(a, payload, accels);
+
+  const updateMatColor = (mat, strain) => {
+    // Define the color stops
+    const safeColor = new THREE.Color(0x00ffcc); // Cyan
+    const warnColor = new THREE.Color(0xffaa00); // Orange
+    const dangerColor = new THREE.Color(0xff3366); // Red
+
+    const s = Math.max(0, Math.min(100, strain));
+    
+    // Create a smooth gradient interpolation
+    if (s <= 60) {
+      // 0% to 60%: Transition from Cyan to Orange
+      mat.color.copy(safeColor).lerp(warnColor, s / 60);
+    } else {
+      // 60% to 100%: Transition from Orange to Red
+      mat.color.copy(warnColor).lerp(dangerColor, (s - 60) / 40);
+    }
+  };
+  updateMatColor(accentMatSh, t.strainSh);
+  updateMatColor(accentMatEl, t.strainEl);
+  updateMatColor(accentMatWr, t.strainWr);
+
+  const tauShEl = document.getElementById('tauSh');
+  const strainShEl = document.getElementById('strainSh');
+  if (tauShEl) tauShEl.textContent = `${t.tauSh.toFixed(3)} N·m`;
+  if (strainShEl) {
+    strainShEl.textContent = `(${t.strainSh.toFixed(0)}%)`;
+    strainShEl.className = t.strainSh > 90 ? 'v err' : (t.strainSh > 60 ? 'v warn' : 'v ok');
+  }
+
+  const tauElEl = document.getElementById('tauEl');
+  const strainElEl = document.getElementById('strainEl');
+  if (tauElEl) tauElEl.textContent = `${t.tauEl.toFixed(3)} N·m`;
+  if (strainElEl) {
+    strainElEl.textContent = `(${t.strainEl.toFixed(0)}%)`;
+    strainElEl.className = t.strainEl > 90 ? 'v err' : (t.strainEl > 60 ? 'v warn' : 'v ok');
+  }
+
+  const tauWrEl = document.getElementById('tauWr');
+  const strainWrEl = document.getElementById('strainWr');
+  if (tauWrEl) tauWrEl.textContent = `${t.tauWr.toFixed(3)} N·m`;
+  if (strainWrEl) {
+    strainWrEl.textContent = `(${t.strainWr.toFixed(0)}%)`;
+    strainWrEl.className = t.strainWr > 90 ? 'v err' : (t.strainWr > 60 ? 'v warn' : 'v ok');
+  }
+
+  const wEl = document.getElementById('wScore');
+  if (wEl) wEl.textContent = t.w.toFixed(3);
+
+  const postureEl = document.getElementById('postureRating');
+  if (postureEl) {
+    const maxStrain = Math.max(t.strainSh, t.strainEl, t.strainWr);
+    if (maxStrain > 90) {
+      postureEl.textContent = 'CRITICAL OVERLOAD';
+      postureEl.className = 'status-warn';
+    } else if (maxStrain > 60) {
+      postureEl.textContent = 'HIGH TORQUE';
+      postureEl.className = 'status-warn';
+    } else if (t.w < 0.15) {
+      postureEl.textContent = 'NEAR SINGULARITY';
+      postureEl.className = 'status-warn';
+    } else {
+      postureEl.textContent = 'OPTIMAL LOAD';
+      postureEl.className = 'status-ok';
+    }
+  }
+
+  // Electrical Telemetry UI
+  const ampsEl = document.getElementById('sysAmps');
+  const maEl = document.getElementById('sysMa');
+  const wattsEl = document.getElementById('sysWatts');
+  const psuEl = document.getElementById('psuLoad');
+  if (ampsEl) ampsEl.textContent = `${t.totalAmps.toFixed(2)} A`;
+  if (maEl) maEl.textContent = `(${t.totalMa.toFixed(0)} mA)`;
+  if (wattsEl) wattsEl.textContent = `${t.powerWatts.toFixed(2)} W`;
+  if (psuEl) {
+    psuEl.textContent = `${t.psuLoadPct.toFixed(1)}%`;
+    psuEl.className = t.psuLoadPct > 80 ? 'v warn' : 'v ok';
+  }
+
+  // Oscilloscope
+  scopePush(t.strainSh, t.strainEl, t.strainWr, t.powerWatts);
+  scopeDraw();
+}
+
+function safeReturnToHome(callback) {
+  const HOME = { base: 90, shoulder: 90, elbow: 95, wrist: 90 };
+  const fk = forwardKinematics(getAngles());
+  const homeFk = forwardKinematics(HOME);
+  const d = Math.hypot(fk.x - homeFk.x, fk.y - homeFk.y, fk.z - homeFk.z);
+  
+  if (d > 20) {
+    const cur = getAngles();
+    // 1. Tuck phase: pull elbow in to avoid floor
+    tweenToAngles({ ...cur, elbow: 160 });
+    setTimeout(() => {
+      // 2. Lift phase: center base and lift shoulder/wrist
+      tweenToAngles({ base: 90, shoulder: 90, elbow: 160, wrist: 90 });
+      setTimeout(() => {
+        // 3. Extend phase: return to home (elbow 95° matches firmware)
+        tweenToAngles(HOME);
+        if (callback) setTimeout(callback, 800);
+      }, 800);
+    }, 800);
+  } else {
+    tweenToAngles(HOME);
+    if (callback) setTimeout(callback, 800);
+  }
+}
+
+// Buttons
+function goHome() {
+  targetGroup.visible = false;
+  _target = null;
+  safeReturnToHome();
+}
+document.getElementById('homeQuickBtn').addEventListener('click', goHome);
+
+document.getElementById('dumbbellUpBtn').addEventListener('click', () => {
+  targetGroup.visible = false;
+  _target = null;
+  safeReturnToHome();
+});
+
+document.getElementById('dumbbellDownBtn').addEventListener('click', () => {
+  const DOWN = { base: 90, shoulder: 137, elbow: 180, wrist: 135 };
+  safeReturnToHome(() => {
+    tweenToAngles(DOWN);
+    if (typeof updateTargetMarker === 'function' && typeof forwardKinematics === 'function') {
+      const f = forwardKinematics(DOWN);
+      updateTargetMarker(f.x, f.y, f.z, f.pitch != null ? f.pitch : 0);
+    }
+  });
+});
+
+document.getElementById('testPoseBtn').addEventListener('click', () => {
+  // Exact locked C joints (user-approved) — no IK, so sim and firmware stay identical.
+  const C = { base: 90, shoulder: 55, elbow: 155, wrist: 150 };
+  safeReturnToHome(() => {
+    tweenToAngles(C);
+    if (typeof updateTargetMarker === 'function' && typeof forwardKinematics === 'function') {
+      const f = forwardKinematics(C);
+      updateTargetMarker(f.x, f.y, f.z, f.pitch != null ? f.pitch : 0);
+    }
+  });
+});
+
+
+document.getElementById('transportPoseBtn').addEventListener('click', () => {
+  tweenToAngles({ base: 90, shoulder: 90, elbow: 180, wrist: 180 });
+});
+
+let activeDemoInterval = null;
+
+document.getElementById('wipeDemoBtn').addEventListener('click', () => {
+  if (activeDemoInterval) clearInterval(activeDemoInterval);
+  window._currentWaypointDemo = null;
+  
+  // 1. Start from home!
+  safeReturnToHome(() => {
+    const targetPitch = 0;
+    
+    // Center of the circle (Moved slightly forward to accommodate a huge 80mm circle)
+    // We keep it as high as mathematically possible to prevent the shoulder from collapsing
+    const cx = 150;
+    const cz = 180;
+    const radius = 32;
+    
+    const startOut = ikSolve(cx, 0, cz + radius, targetPitch);
+    if (startOut.status === 'OK') tweenToAngles(startOut.angles);
+  
+  setTimeout(() => {
+    let t = 0;
+    let lastAngles = startOut.status === 'OK' ? startOut.angles : null;
+    activeDemoInterval = setInterval(() => {
+      t += 0.0025; // match slower firmware orbital (~ORB_DPS 6)
+      
+      const x = cx;
+      const y = radius * Math.sin(t);
+      const z = cz + radius * Math.cos(t);
+      
+      const sol = ikSolve(x, y, z, targetPitch);
+      if (sol.status === 'OK') {
+        lastAngles = sol.angles;
+        setAngles(sol.angles);
+        updateTargetMarker(x, y, z, targetPitch);
+      } else if (lastAngles) {
+        setAngles(lastAngles);
+      }
+    }, 16);
+  }, 1200); // Wait for setup tween
+  }, 800); // Wait for home tween
+});
+
+document.getElementById('snakeDemoBtn').addEventListener('click', () => {
+  if (activeDemoInterval) clearInterval(activeDemoInterval);
+  window._currentWaypointDemo = null;
+  
+  // 1. Start from home!
+  safeReturnToHome(() => {
+    // Start the arm in the EXACT mathematical t=0 position of the sine waves to avoid jumping
+    const startBase = 90 + 20 * Math.sin(0);
+    const startShoulder = 90 + 15 * Math.sin(0);
+    const startElbow = 120 + 30 * Math.sin(-1.2);
+    const startWrist = 90 + 60 * Math.sin(-2.4);
+    
+    tweenToAngles({ base: startBase, shoulder: startShoulder, elbow: startElbow, wrist: startWrist });
+  
+  setTimeout(() => {
+    let t = 0;
+    activeDemoInterval = setInterval(() => {
+      t += 0.028; // a bit faster snake
+      
+      // Phase-shifted sine waves create a traveling wave down the links
+      const base = 90 + 20 * Math.sin(t * 0.5);          // Slow base sway
+      // Reduced shoulder amplitude and centered perfectly at 90 (upright) to minimize torque
+      const shoulder = 90 + 15 * Math.sin(t);            // Core oscillation
+      const elbow = 120 + 30 * Math.sin(t - 1.2);        // Delayed following
+      const wrist = 90 + 60 * Math.sin(t - 2.4);         // Tip whip
+      
+      const angles = { base, shoulder, elbow, wrist };
+      setAngles(angles);
+      
+      // Update the yellow target arrow to match the FK tip so it doesn't look disconnected
+      const fk = forwardKinematics(angles);
+      _target = { x: fk.x, y: fk.y, z: fk.z };
+      if (targetGroup) {
+        targetGroup.position.set(fk.x * SCALE, fk.z * SCALE, -fk.y * SCALE);
+        // Approximate pitch for visual
+        targetGroup.rotation.z = -(wrist - 90) * Math.PI/180;
+      }
+    }, 16);
+  }, 800); // Wait for setup tween
+  }, 800); // Wait for home tween
+});
+
+document.getElementById('cobraDemoBtn').addEventListener('click', () => {
+  if (activeDemoInterval) clearInterval(activeDemoInterval);
+  window._currentWaypointDemo = null;
+
+  const STRIKES = 1;
+  safeReturnToHome(() => {
+    const pCoil = { base: 90, shoulder: 52.0, elbow: 168.0, wrist: 22.0 };
+    const pStrike = { base: 90, shoulder: 138.0, elbow: 92.0, wrist: 88.0 };
+
+    function easeInOutCubic(x) {
+      return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    }
+    function lerpPose(a, b, p) {
+      return {
+        base: a.base,
+        shoulder: a.shoulder + (b.shoulder - a.shoulder) * p,
+        elbow: a.elbow + (b.elbow - a.elbow) * p,
+        wrist: a.wrist + (b.wrist - a.wrist) * p,
+      };
+    }
+    function paint(angles) {
+      setAngles(angles);
+      const fk = forwardKinematics(angles);
+      _target = { x: fk.x, y: fk.y, z: fk.z };
+      if (targetGroup) {
+        targetGroup.position.set(fk.x * SCALE, fk.z * SCALE, -fk.y * SCALE);
+        targetGroup.rotation.z = -(angles.wrist - 90) * Math.PI / 180;
+      }
+    }
+
+    tweenToAngles(pCoil);
+    setTimeout(() => {
+      let phase = 4; // wait 3s coiled, then strike
+      let done = 0;
+      let t0 = performance.now();
+      activeDemoInterval = setInterval(() => {
+        const now = performance.now();
+        const elapsed = now - t0;
+        if (phase === 1) {
+          const u = Math.min(1, elapsed / 240);
+          paint(lerpPose(pCoil, pStrike, easeInOutCubic(u)));
+          if (u >= 1) { phase = 2; t0 = now; }
+        } else if (phase === 2) {
+          paint(pStrike);
+          if (elapsed >= 180) { phase = 3; t0 = now; }
+        } else if (phase === 3) {
+          const u = Math.min(1, elapsed / 240);
+          paint(lerpPose(pStrike, pCoil, easeInOutCubic(u)));
+          if (u >= 1) {
+            paint(pCoil);
+            done += 1;
+            if (done >= STRIKES) {
+              clearInterval(activeDemoInterval);
+              activeDemoInterval = null;
+              safeReturnToHome();
+              return;
+            }
+            phase = 4;
+            t0 = now;
+          }
+        } else {
+          paint(pCoil);
+          if (elapsed >= 3000) { phase = 1; t0 = now; }
+        }
+      }, 16);
+    }, 800);
+  });
+});
+
+document.getElementById('cobraLoopDemoBtn').addEventListener('click', () => {
+  if (activeDemoInterval) clearInterval(activeDemoInterval);
+  window._currentWaypointDemo = null;
+
+  safeReturnToHome(() => {
+    const pCoil = { base: 90, shoulder: 52.0, elbow: 168.0, wrist: 22.0 };
+    const pStrike = { base: 90, shoulder: 138.0, elbow: 92.0, wrist: 88.0 };
+
+    function easeInOutCubic(x) {
+      return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    }
+    function lerpPose(a, b, p) {
+      return {
+        base: a.base,
+        shoulder: a.shoulder + (b.shoulder - a.shoulder) * p,
+        elbow: a.elbow + (b.elbow - a.elbow) * p,
+        wrist: a.wrist + (b.wrist - a.wrist) * p,
+      };
+    }
+    function paint(angles) {
+      setAngles(angles);
+      const fk = forwardKinematics(angles);
+      _target = { x: fk.x, y: fk.y, z: fk.z };
+      if (targetGroup) {
+        targetGroup.position.set(fk.x * SCALE, fk.z * SCALE, -fk.y * SCALE);
+        targetGroup.rotation.z = -(angles.wrist - 90) * Math.PI / 180;
+      }
+    }
+
+    tweenToAngles(pCoil);
+    setTimeout(() => {
+      let phase = 4;
+      let t0 = performance.now();
+      activeDemoInterval = setInterval(() => {
+        const now = performance.now();
+        const elapsed = now - t0;
+        if (phase === 1) {
+          const u = Math.min(1, elapsed / 240);
+          paint(lerpPose(pCoil, pStrike, easeInOutCubic(u)));
+          if (u >= 1) { phase = 2; t0 = now; }
+        } else if (phase === 2) {
+          paint(pStrike);
+          if (elapsed >= 180) { phase = 3; t0 = now; }
+        } else if (phase === 3) {
+          const u = Math.min(1, elapsed / 240);
+          paint(lerpPose(pStrike, pCoil, easeInOutCubic(u)));
+          if (u >= 1) { phase = 4; t0 = now; paint(pCoil); }
+        } else {
+          paint(pCoil);
+          if (elapsed >= 3000) { phase = 1; t0 = now; }
+        }
+      }, 16);
+    }, 800);
+  });
+});
+
+document.getElementById('stopDemoBtn').addEventListener('click', () => {
+  if (activeDemoInterval) {
+    clearInterval(activeDemoInterval);
+    activeDemoInterval = null;
+  }
+  window._currentWaypointDemo = null;
+});
+
+function runIK(x, y, z, p) {
+  _target = { x, y, z };
+  updateTargetMarker(x, y, z, p);
+  
+  if (typeof globalPipeline !== 'undefined' && globalPipeline.enabled) {
+    globalPipeline.setTarget(x, y, z, p);
+    const ikStatusEl = document.getElementById('ikStatus');
+    if (ikStatusEl) {
+      ikStatusEl.textContent = 'PIPELINE ACTIVE';
+      ikStatusEl.className = 'status-ok';
+    }
+    return;
+  }
+
+  const out = ikSolve(x, y, z, p);
+  const ikStatusEl = document.getElementById('ikStatus');
+  const ikAnglesEl = document.getElementById('ikAngles');
+  const mismatchEl = document.getElementById('mismatch');
+  if (out.status === 'OK') {
+    tweenToAngles(out.angles);
+    if (ikStatusEl) {
+      ikStatusEl.textContent = 'OK';
+      ikStatusEl.className = 'status-ok';
+    }
+    if (ikAnglesEl) {
+      ikAnglesEl.textContent =
+        `b=${out.angles.base.toFixed(1)} sh=${out.angles.shoulder.toFixed(1)} el=${out.angles.elbow.toFixed(1)} wr=${out.angles.wrist.toFixed(1)}`;
+    }
+    const f = forwardKinematics(out.angles);
+    const distMismatch = Math.hypot(f.x - x, f.y - y, f.z - z);
+    if (mismatchEl) {
+      mismatchEl.textContent = distMismatch.toFixed(2) + ' mm';
+      mismatchEl.className = distMismatch < 1.5 ? 'status-ok' : 'status-warn';
+    }
+  } else {
+    if (ikStatusEl) {
+      ikStatusEl.textContent = out.status;
+      ikStatusEl.className = 'status-warn';
+    }
+    if (ikAnglesEl) ikAnglesEl.textContent = '—';
+    if (mismatchEl) {
+      mismatchEl.textContent = '—';
+      mismatchEl.className = '';
+    }
+  }
+}
+
+Object.values(sliders).forEach(s => s.addEventListener('input', () => {
+  getAngles();
+  updateLabels();
+}));
+
+['base', 'shoulder', 'elbow', 'wrist'].forEach((j) => {
+  const el = degInputs[j];
+  if (!el) return;
+  const applyDeg = () => {
+    let deg = parseFloat(el.value);
+    if (Number.isNaN(deg)) return;
+    const r = RESTRICTIONS[j];
+    if (deg < r.min) deg = r.min;
+    if (deg > r.max) deg = r.max;
+    el.value = deg.toFixed(1);
+    const cur = getAngles();
+    cur[j] = deg;
+    if (typeof ArmControl !== 'undefined' && ArmControl.isManualOverride && ArmControl.isManualOverride()) {
+      tweenToAngles(cur);
+    } else {
+      setAngles(cur);
+    }
+    updateLabels();
+  };
+  el.addEventListener('change', applyDeg);
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); applyDeg(); el.blur(); }
+  });
+});
+
+const pSlider = document.getElementById('payloadSlider');
+const pInput = document.getElementById('payloadInput');
+if (pSlider && pInput) {
+  pSlider.addEventListener('input', () => {
+    pInput.value = parseFloat(pSlider.value) >= 0.01
+      ? parseFloat(pSlider.value).toFixed(3)
+      : pSlider.value;
+    updatePayloadDumbbell(parseFloat(pSlider.value));
+  });
+  pInput.addEventListener('change', () => {
+    pSlider.value = pInput.value;
+    setPayloadKg(parseFloat(pInput.value), true);
+  });
+}
+initDumbbellWeightUi();
+
+// Cleaned up unused pipeline hooks
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+new ResizeObserver(resize).observe(canvas.parentElement);
+resize();
+
+
+
+let lastPipelineTime = performance.now();
+function tick() {
+  const now = performance.now();
+  if (typeof globalPipeline !== 'undefined' && globalPipeline.enabled) {
+    const dt = now - lastPipelineTime;
+    const newPWM = globalPipeline.update(dt, now);
+    if (newPWM) {
+      sliders.base.value = newPWM.base;
+      sliders.shoulder.value = newPWM.shoulder;
+      sliders.elbow.value = newPWM.elbow;
+      sliders.wrist.value = newPWM.wrist;
+      _currentAngles = newPWM._angles;
+      updateLabels();
+    }
+  }
+  lastPipelineTime = now;
+
+  if (targetGroup.visible) {
+    const s = 1.0 + 0.12 * Math.sin(performance.now() * 0.005);
+    targetGroup.scale.setScalar(s);
+  }
+  envelope.material.opacity = 0.03 + 0.015 * (1 + Math.sin(performance.now() * 0.001));
+  render(); // Guarantee physics and UI are calculated exactly once per frame
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+// --- HTL — one continuous synced pass (no stops at waypoints) ---
+const HTL_WP4_ELBOW = 180;
+const HTL_WP4_WRIST = 180;
+const HTL_WAYPOINTS = [
+  { base: 90, shoulder: 180, elbow: 90,  wrist: 90 },
+  { base: 90, shoulder: 127, elbow: 180, wrist: 90 },
+  { base: 90, shoulder: 112, elbow: 180, wrist: 180 },
+  { base: 90, shoulder: shoulderForXyZero(HTL_WP4_ELBOW, HTL_WP4_WRIST), elbow: HTL_WP4_ELBOW, wrist: HTL_WP4_WRIST },
+  { base: 90, shoulder: 90,  elbow: 90,  wrist: 90 },
+];
+
+function htlMaxDelta(from, to) {
+  return Math.max(
+    Math.abs(to.base - from.base),
+    Math.abs(to.shoulder - from.shoulder),
+    Math.abs(to.elbow - from.elbow),
+    Math.abs(to.wrist - from.wrist)
+  );
+}
+
+function runHtlDemo(opts = {}) {
+  const fromCurrent = opts.fromCurrent === true;
+  const waypoints = HTL_WAYPOINTS;
+  if (typeof globalPipeline !== 'undefined' && globalPipeline.enabled) {
+    globalPipeline.enabled = false;
+    const cb = document.getElementById('pipelineEnable');
+    if (cb) cb.checked = false;
+  }
+  if (_tween) { _tween.cancelled = true; _tween = null; }
+
+  const startHtl = () => {
+    const start = getAngles();
+    const segs = [];
+    let from = { ...start };
+    for (const wp of waypoints) {
+      segs.push({ from: { ...from }, to: { ...wp } });
+      from = wp;
+    }
+    const HTL_DPS = 40;
+    const segMs = segs.map((s) => Math.max(50, (htlMaxDelta(s.from, s.to) / HTL_DPS) * 1000));
+    const timeEnd = [];
+    let t = 0;
+    for (const ms of segMs) {
+      t += ms;
+      timeEnd.push(t);
+    }
+    const totalMs = t;
+    const token = { cancelled: false };
+    _tween = token;
+    const t0 = performance.now();
+    const slowMo = document.getElementById('slowMoCheck')?.checked;
+
+    const step = (now) => {
+      if (token.cancelled) return;
+      let elapsed = now - t0;
+      if (slowMo) elapsed *= 10;
+      if (elapsed >= totalMs) {
+        _tween = null;
+        setAngles(waypoints[waypoints.length - 1]);
+        return;
+      }
+      let seg = 0;
+      while (seg < segs.length - 1 && elapsed >= timeEnd[seg]) seg++;
+      const segT0 = seg === 0 ? 0 : timeEnd[seg - 1];
+      const u = (elapsed - segT0) / segMs[seg];
+      const { from: f, to: to } = segs[seg];
+      setAngles({
+        base: f.base + (to.base - f.base) * u,
+        shoulder: f.shoulder + (to.shoulder - f.shoulder) * u,
+        elbow: f.elbow + (to.elbow - f.elbow) * u,
+        wrist: f.wrist + (to.wrist - f.wrist) * u,
+      });
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  if (fromCurrent) startHtl();
+  else safeReturnToHome(startHtl);
+}
+
+const setPayload = (val) => {
+  if (typeof setPayloadKg === 'function') setPayloadKg(val, true);
+  else {
+    const pS = document.getElementById('payloadSlider');
+    const pI = document.getElementById('payloadInput');
+    if (pS) { pS.value = val; updateLabels(); render(); }
+    if (pI) pI.value = val;
+  }
+};
+document.getElementById('htlDemoBtn').addEventListener('click', () => runHtlDemo());
+
+
+// --- PS (Pendulum Swing) Demo ---
+document.getElementById('psDemoBtn').addEventListener('click', () => {
+  safeReturnToHome(() => {
+    // Set up: shoulder holds, elbow almost straight
+    tweenToAngles({ base: 90, shoulder: 152, elbow: 100, wrist: 90 });
+    setTimeout(() => {
+      // Hold 2s then dump ELBOW down (shoulder stays ~150°)
+      setTimeout(() => {
+        tweenToAngles({ base: 90, shoulder: 150, elbow: 142, wrist: 92 });
+        setTimeout(() => {
+          // Inertia until stop-start, then brake to stable home (el 95)
+          tweenToAngles({ base: 90, shoulder: 110, elbow: 115, wrist: 90 });
+          setTimeout(() => {
+            tweenToAngles({ base: 90, shoulder: 100, elbow: 105, wrist: 90 });
+            setTimeout(() => {
+              tweenToAngles({ base: 90, shoulder: 90, elbow: 95, wrist: 90 });
+            }, 1200);
+          }, 700);
+        }, 450);
+      }, 2000);
+    }, 1400);
+  });
+});
+
+function runExerciseSequence(waypoints, seq, reps, _peakWp, onDone, opts = {}) {
+  const lastRepSeq = opts.lastRepSeq || null;
+  // Synced rehab motion: constant-jerk S-curve on the limiting joint (all arrive together).
+  const REHAB_DPS = 52;
+  const LEG_MIN_MS = 180;
+  const LEG_MAX_MS = 1800;
+  const EX_S_CURVE = { vMax: REHAB_DPS * 1.15, aMax: 380, jMax: 2800 };
+  let rep = 0;
+  let si = 0;
+  let cancelled = false;
+
+  function legPlan(from, to) {
+    const deltas = {
+      base: to.base - from.base,
+      shoulder: to.shoulder - from.shoulder,
+      elbow: to.elbow - from.elbow,
+      wrist: to.wrist - from.wrist,
+    };
+    const maxDelta = Math.max(
+      Math.abs(deltas.base),
+      Math.abs(deltas.shoulder),
+      Math.abs(deltas.elbow),
+      Math.abs(deltas.wrist)
+    );
+    if (maxDelta < 0.5) return null;
+    const profile = new SCurveLib.SCurveProfile(maxDelta, EX_S_CURVE);
+    const naturalSec = profile.totalTime;
+    const durSec = Math.min(LEG_MAX_MS / 1000, Math.max(LEG_MIN_MS / 1000, naturalSec));
+    const timeScale = naturalSec > 1e-9 ? naturalSec / durSec : 1;
+    return { from, to, deltas, maxDelta, profile, durSec, timeScale };
+  }
+
+  function syncTween(to, done) {
+    if (typeof globalPipeline !== 'undefined' && globalPipeline.enabled) {
+      globalPipeline.enabled = false;
+      const cb = document.getElementById('pipelineEnable');
+      if (cb) cb.checked = false;
+    }
+    if (window._tween) { window._tween.cancelled = true; window._tween = null; }
+    const plan = legPlan(getAngles(), to);
+    if (!plan) {
+      setAngles(to);
+      done();
+      return;
+    }
+    const { from, deltas, maxDelta, profile, durSec, timeScale } = plan;
+    const t0 = performance.now();
+    const token = { cancelled: false };
+    window._tween = token;
+    const step = (now) => {
+      if (token.cancelled || cancelled) return;
+      const elapsed = (now - t0) / 1000;
+      if (elapsed >= durSec) {
+        window._tween = null;
+        setAngles(to);
+        done();
+        return;
+      }
+      const profileT = elapsed * timeScale;
+      const progress = profile.positionAt(profileT) / maxDelta;
+      setAngles({
+        base: from.base + deltas.base * progress,
+        shoulder: from.shoulder + deltas.shoulder * progress,
+        elbow: from.elbow + deltas.elbow * progress,
+        wrist: from.wrist + deltas.wrist * progress,
+      });
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function activeSeq() {
+    if (lastRepSeq && rep === reps - 1) return lastRepSeq;
+    return seq;
+  }
+
+  function advance() {
+    if (cancelled) return;
+    const seqNow = activeSeq();
+    while (si >= seqNow.length) {
+      rep += 1;
+      if (rep >= reps) {
+        onDone();
+        return;
+      }
+      si = 0;
+    }
+    const wp = waypoints[seqNow[si]];
+    if (!legPlan(getAngles(), wp)) {
+      si += 1;
+      advance();
+      return;
+    }
+    syncTween(wp, () => {
+      si += 1;
+      advance();
+    });
+  }
+
+  if (window._tween) { window._tween.cancelled = true; window._tween = null; }
+  if (typeof activeDemoInterval !== 'undefined' && activeDemoInterval) {
+    clearInterval(activeDemoInterval);
+    activeDemoInterval = null;
+  }
+  advance();
+}
+
+const EX_BC = [
+  { base: 90, shoulder: 120, elbow: 170, wrist: 180 }, // tip down — sh/el locked
+  { base: 90, shoulder: 120, elbow: 170, wrist: 25 },  // tip up — wrist only
+];
+const EX_LAT = [
+  { base: 90, shoulder: 90, elbow: 180, wrist: 90 },  // 0 tip OUT (photo)
+  { base: 90, shoulder: 90, elbow: 180, wrist: 180 }, // 1 tip DOWN (photo)
+];
+const EX_LAT_SEQ = [0, 1, 0];
+const EX_LAT_PEAK = 1;
+// Elbow flex: shoulder 0° LEFT. Last rep chains PEAK → HTL-4 (column) → HTL-5 (home).
+const EX_EF = [
+  { base: 90, shoulder: 0, elbow: 95, wrist: 90 },
+  { base: 90, shoulder: 0, elbow: 180, wrist: 180 },
+  { base: 90, shoulder: shoulderForXyZero(HTL_WP4_ELBOW, HTL_WP4_WRIST), elbow: HTL_WP4_ELBOW, wrist: HTL_WP4_WRIST },
+  { base: 90, shoulder: 90, elbow: 90, wrist: 90 },
+];
+const EX_EL_SEQ = [0, 1, 0];
+const EX_EL_SEQ_LAST = [0, 1, 0, 1, 2, 3];
+
+const EX_REPS = 6;
+
+document.getElementById('bicepDemoBtn').addEventListener('click', () => {
+  runExerciseSequence(EX_BC, [0, 1, 0], EX_REPS, 1, () => safeReturnToHome());
+});
+
+document.getElementById('lateralDemoBtn').addEventListener('click', () => {
+  runExerciseSequence(EX_LAT, EX_LAT_SEQ, EX_REPS, EX_LAT_PEAK, () => safeReturnToHome());
+});
+
+document.getElementById('elbowDemoBtn').addEventListener('click', () => {
+  runExerciseSequence(EX_EF, EX_EL_SEQ, EX_REPS, 1, () => {}, { lastRepSeq: EX_EL_SEQ_LAST });
+});
+
+setupControls();
+updateLabels();
+
+(function bindClawUi() {
+  const openBtn = document.getElementById('clawOpenBtn');
+  const midBtn = document.getElementById('clawMidBtn');
+  const closeBtn = document.getElementById('clawCloseBtn');
+  const slider = document.getElementById('clawSlider');
+  const pctInput = document.getElementById('clawPctInput');
+
+  window.ClawUi = {
+    _userOwned: false,
+    isUserOwned() { return this._userOwned; },
+    markUserOwned() { this._userOwned = true; },
+  };
+
+  function onClawUserInput(fn) {
+    return () => {
+      ClawUi.markUserOwned();
+      fn();
+    };
+  }
+
+  function applyClawPctInput(sendHw) {
+    if (!pctInput) return;
+    let pct = parseFloat(pctInput.value);
+    if (Number.isNaN(pct)) return;
+    pct = Math.max(0, Math.min(100, pct));
+    pctInput.value = String(Math.round(pct));
+    setClawPercent(pct, sendHw);
+  }
+
+  if (openBtn) openBtn.addEventListener('click', onClawUserInput(() => setClawPercent(CLAW_OPEN_PCT, true)));
+  if (midBtn) midBtn.addEventListener('click', onClawUserInput(() => setClawPercent(CLAW_MID_PCT, true)));
+  if (closeBtn) closeBtn.addEventListener('click', onClawUserInput(() => setClawPercent(CLAW_CLOSE_PCT, true)));
+  if (slider) {
+    slider.addEventListener('input', onClawUserInput(() => setClawPercent(parseFloat(slider.value), false)));
+    slider.addEventListener('change', onClawUserInput(() => setClawPercent(parseFloat(slider.value), true)));
+  }
+  if (pctInput) {
+    pctInput.addEventListener('input', onClawUserInput(() => applyClawPctInput(false)));
+    pctInput.addEventListener('change', onClawUserInput(() => applyClawPctInput(true)));
+    pctInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        ClawUi.markUserOwned();
+        applyClawPctInput(true);
+        pctInput.blur();
+      }
+    });
+  }
+})();
+
+requestAnimationFrame(tick);
+
+document.getElementById('viewReset').addEventListener('click', () => {
+  camState.yaw   = Math.PI * 0.5;
+  camState.pitch = Math.PI / 6;
+  camState.dist  = 22.0;
+  camState.target.set(0, 0, 0);
+  const t = camState.target;
+  camera.position.set(
+    t.x + camState.dist * Math.cos(camState.pitch) * Math.cos(camState.yaw),
+    t.y + camState.dist * Math.sin(camState.pitch),
+    t.z + camState.dist * Math.cos(camState.pitch) * Math.sin(camState.yaw),
+  );
+  camera.lookAt(t);
+});
+
+// UI Collapsible Init
+document.querySelectorAll('.collapsible').forEach(btn => {
+  btn.addEventListener('click', function() {
+    this.classList.toggle('active');
+    let content = this.nextElementSibling;
+    if (content.classList.contains('collapse-content')) {
+      content.classList.toggle('active');
+    }
+  });
+});
+
+const worldDefaults = { x: 0, y: -7.5, z: 0 };
+function setWorldOffset(axis, v) {
+  worldGroup.position[axis] = v;
+  const sign = v >= 0 ? '+' : '';
+  document.getElementById(`worldOffset${axis.toUpperCase()}Val`).textContent = sign + v.toFixed(1);
+}
+['X', 'Y', 'Z'].forEach((axis) => {
+  const slider = document.getElementById(`worldOffset${axis}`);
+  slider.value = worldDefaults[axis.toLowerCase()];
+  setWorldOffset(axis.toLowerCase(), worldDefaults[axis.toLowerCase()]);
+  slider.addEventListener('input', () => {
+    setWorldOffset(axis.toLowerCase(), parseFloat(slider.value));
+  });
+});
+document.getElementById('worldOffsetReset').addEventListener('click', () => {
+  ['x', 'y', 'z'].forEach((axis) => {
+    document.getElementById(`worldOffset${axis.toUpperCase()}`).value = worldDefaults[axis];
+    setWorldOffset(axis, worldDefaults[axis]);
+  });
+});
+window.setAngles = setAngles;
+window.tweenToAngles = tweenToAngles;
+window.safeReturnToHome = safeReturnToHome;
+window.render = render;
+window.runIK = runIK;
+</script>
+<script src="arm-control.js"></script>
+<script src="agent-chat.js"></script>
+</body>
+</html>

@@ -2,25 +2,15 @@
 
 ## Dual-brain split
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Arduino UNO Q                           │
-│  ┌──────────────────────┐    ┌───────────────────────────┐  │
-│  │  MPU (Linux)         │    │  MCU (STM32U585)          │  │
-│  │  App Lab / Debian    │◄──►│  Arduino sketch           │  │
-│  │  • Edge Impulse      │Bridge│  • ArmPipeline (IK path) │  │
-│  │  • Dashboard / UI    │ RPC │  • ProtocolRunner        │  │
-│  │  • Session / AI coach│    │  • DeviceState telemetry  │  │
-│  └──────────────────────┘    │  • PCA9685 PWM @ 50 Hz    │  │
-│                              └─────────────┬─────────────┘  │
-└────────────────────────────────────────────┼────────────────┘
-                                             │ I2C
-                                      ┌──────▼──────┐
-                                      │   PCA9685   │
-                                      │  16-ch PWM  │
-                                      └──────┬──────┘
-                         ch0..ch4 ── base / shoulder / elbow / wrist / gripper
-                                      └──────────────► 4-DOF arm + claw
+```mermaid
+flowchart TB
+  subgraph UNO_Q["Arduino UNO Q"]
+    MPU["MPU Linux App Lab\nEdge Impulse · FastAPI · LLM · Web UI · MQTT"]
+    MCU["MCU STM32U585 Zephyr\nArmPipeline · ProtocolRunner · 100 Hz"]
+    MPU <-->|Router Bridge RPC| MCU
+  end
+  MCU -->|I2C| PCA["PCA9685 16-ch PWM 50 Hz"]
+  PCA --> ARM["4-DOF arm + gripper ch0-4"]
 ```
 
 | Side | Responsibility |

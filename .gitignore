@@ -16,9 +16,13 @@ Thumbs.db
 *.key
 
 # Local backups
+Side/
 backup/
 *-backup/
 Armic-backup/
+
+# Local-only deliverables / AI-internal planning (never push to public)
+Hackster Contest Plan/
 
 # Node
 node_modules/

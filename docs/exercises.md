@@ -1,6 +1,6 @@
 # Rehab exercise reference poses
 
-Source of truth for photo-matched exercises. Cursor rule: [`.cursor/rules/arm-rehab-exercises.mdc`](../.cursor/rules/arm-rehab-exercises.mdc).
+Source of truth for photo-matched exercises. Locked joint bands: elbow **90°–180°**, floor guard **≥ 15 mm** (see [docs/kinematics.md](kinematics.md)).
 
 ## Shared rules
 

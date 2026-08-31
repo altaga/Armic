@@ -1,0 +1,10 @@
+name: Armic
+icon: 🦾
+description: 4DOF rehab arm — IK planner, motion protocols and web teleop, all on the UNO Q
+
+ports:
+  - 7000
+
+bricks:
+  - arduino:web_ui
+  - arduino:llm

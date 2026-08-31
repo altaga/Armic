@@ -1,0 +1,169 @@
+name: Mermaid → PNG Render
+
+# Auto-generates PNG renders of every ```mermaid``` block in the repo on every push
+# to the default branch. Outputs land in Docs/refs/generated/ and are committed back
+# so GitHub README previews, Hackster pastes, and offline clones always have images
+# without requiring any contributor to install Mermaid or Node locally.
+#
+# Why we run this:
+#   - GitHub markdown RENDER DOES live-render mermaid in many contexts, but:
+#   - Hackster WYSIWYG paste does NOT render mermaid (D12 dry-run explicitly calls this out)
+#   - Offline clones and IDE preview markdown-only extensions do NOT render mermaid
+#   - Judges on flaky conference Wi-Fi appreciate seeing a PNG immediately vs waiting JS
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "**/*.md"
+      - ".github/workflows/mermaid-to-png.yml"
+  workflow_dispatch:      # manual trigger button
+  pull_request:           # also run on PRs as a lint (outputs aren't committed on PR, only verified they render cleanly without syntax errors)
+
+jobs:
+  render:
+    name: Render all mermaid blocks → PNG
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # so the bot can git commit the generated PNGs back to the branch
+    container:
+      image: minlag/mermaid-cli:10.9.1   # Node + Chromium + @mermaid-js/mermaid-cli preinstalled, ARM/amd64 multi-arch
+    env:
+      OUT_DIR: Docs/refs/generated
+      PNG_SCALE: 2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install helper tools (ripgrep + jq for robust fence extraction)
+        run: |
+          apt-get update -qq \
+            && apt-get install -y --no-install-recommends ripgrep jq python3-pip \
+            && rm -rf /var/lib/apt/lists/*
+
+      - name: Create output directory
+        run: mkdir -p "$OUT_DIR"
+
+      - name: Extract every ```mermaid``` block and render as PNG (per-file per-block naming)
+        run: |
+          set -euo pipefail
+
+          python3 - "$OUT_DIR" "$PNG_SCALE" <<'PY'
+          import hashlib, pathlib, re, subprocess, sys, os
+
+          out_dir = pathlib.Path(sys.argv[1])
+          scale = int(sys.argv[2])
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          md_files = sorted(p for p in pathlib.Path(".").rglob("*.md")
+                            if not any(part.startswith(".") for part in p.parts)
+                            and not str(p).startswith("Side/"))
+
+          fence_re = re.compile(r"```mermaid\s*\n(.*?)```", re.DOTALL)
+          index_rows = []
+          total_rendered = 0
+
+          for md in md_files:
+              text = md.read_text(encoding="utf-8")
+              for idx, m in enumerate(fence_re.finditer(text), start=1):
+                  body = m.group(1).strip()
+                  if not body:
+                      continue
+                  slug = md.stem + "-mermaid-" + str(idx)
+                  safe_slug = re.sub(r"[^A-Za-z0-9._-]", "-", slug)
+                  mmd_path = out_dir / (safe_slug + ".mmd")
+                  png_path = out_dir / (safe_slug + ".png")
+                  if not body:
+                      continue
+                  mmd_path.write_text(body, encoding="utf-8")
+                  digest = hashlib.sha256(body.encode("utf-8")).hexdigest()[:10]
+                  # Skip re-rendering identical body (cache by hash file)
+                  hash_path = out_dir / (safe_slug + ".sha256")
+                  if hash_path.exists() and png_path.exists() and hash_path.read_text().strip() == digest:
+                      index_rows.append((str(md), idx, str(png_path), "CACHED"))
+                      continue
+                  # Use mermaid-cli: mmdc -i INPUT.mmd -o OUTPUT.png -b white -s SCALE -t default
+                  cmd = [
+                      "mmdc",
+                      "-p", "/puppeteer-config.json",   # baked into minlag/mermaid-cli for sandbox
+                      "-i", str(mmd_path),
+                      "-o", str(png_path),
+                      "-b", "white",
+                      "-s", str(scale),
+                      "-t", "default",
+                  ]
+                  try:
+                      subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=180)
+                  except subprocess.CalledProcessError as exc:
+                      sys.stderr.write("MMDC FAILED on " + str(md) + " block #" + str(idx) + ":\n")
+                      sys.stderr.write(exc.stdout + "\n" + exc.stderr + "\n")
+                      sys.stderr.write("--- Block body ---\n" + body + "\n---\n")
+                      raise
+                  hash_path.write_text(digest + "\n", encoding="utf-8")
+                  index_rows.append((str(md), idx, str(png_path), "RENDERED"))
+                  total_rendered += 1
+
+          # Write a human + machine readable INDEX so D12 dry-run paste can map them
+          index_path = out_dir / "INDEX.md"
+          lines = [
+              "# Mermaid PNG render index (auto-generated by GH Action)",
+              "",
+              "| Source Markdown | Block # | Output PNG | Status |",
+              "|---|---|---|---|",
+          ]
+          for row in sorted(index_rows):
+              src, blk, png, st = row
+              lines.append(f"| `{src}` | {blk} | [`{png}`]({png}) | {st} |")
+          lines += [
+              "",
+              f"Total blocks with fresh renders this run: **{total_rendered}**.",
+              "",
+              "## How to use with D12-dry-run-paste.md Hackster Story paste",
+              "",
+              "When pasting the Story into Hackster WYSIWYG, locate the triple-backtick mermaid fence in the Story source.",
+              "Look up the source file + block index in this INDEX.md to find the pre-rendered PNG to insert instead.",
+              "",
+              "## Local equivalent",
+              "",
+              "Run `scripts/mermaid-render.sh` on your laptop before push — identical script, Docker required.",
+              "",
+          ]
+          index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print("DONE. Rendered fresh this run:", total_rendered, "Cached:", len(index_rows) - total_rendered)
+          PY
+
+      - name: Commit generated PNGs back to the branch (only on push to main/master; NOT on PR)
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$OUT_DIR/"
+          # Only proceed if there are actual changes (avoid empty-commit error)
+          if ! git diff --cached --quiet; then
+            git commit -m "docs(mermaid): auto-regenerate PNG renders [skip ci]
+          
+          Regenerated by GitHub Actions workflow .github/workflows/mermaid-to-png.yml
+          from mermaid blocks found in repo markdown files."
+            # Push using the built-in GITHUB_TOKEN so it triggers no further workflows (avoids infinite loops)
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "No changes to mermaid renders detected. Nothing to commit."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload PNGs + INDEX as workflow artifact (always, so PRs can download)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mermaid-renders
+          path: |
+            Docs/refs/generated/*.png
+            Docs/refs/generated/INDEX.md
+          if-no-files-found: error
+          retention-days: 30

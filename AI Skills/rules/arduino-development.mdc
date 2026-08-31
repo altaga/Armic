@@ -1,0 +1,64 @@
+---
+description: UNO Q Arduino development — project context, safety, and agent routing
+alwaysApply: true
+---
+
+# Arduino development (UNO Q)
+
+## This board
+
+| Item | Value |
+|------|-------|
+| Board | UNO Q (`arduino,imola`) — confirm with devicetree |
+| Network | **Query live** — do not hardcode IP, hostname, or mDNS in docs |
+| Main app | **Armic** — `~/ArduinoApps/armic/` |
+| Backup app | **Board Backup** — `~/ArduinoApps/board-backup/` |
+| Web UI | Port **7000** |
+
+Discover network URLs at runtime:
+
+```bash
+hostname
+hostname -I 2>/dev/null | awk '{print $1}'
+arduino-app-cli app logs user:<app> --tail 20   # often prints Network URL
+```
+
+App Lab Run may open `http://<board-ip>:7000/...` while MQTT clients may use
+`<hostname>.local` — both can be valid. Do not reconfigure networking to change
+Run behavior.
+
+## Before you act
+
+1. **Confirm** before `arduino-app-cli app start` — only one app runs; it stops the other (usually Armic).
+2. **Backup** before network, Docker, or destructive changes — `arduino-backup` skill or `http://<board-ip>:7000/download.html` (use live IP).
+3. **Never change** hostname, mDNS, WiFi, or NetworkManager without explicit user approval and a backup.
+4. **Query live** — `arduino-app-cli app list`, `brick list`, `config get`; do not rely on stale assumptions.
+5. **Do not write** board IP, hostname, mDNS, WiFi SSID, or LAN details into rules, skills, or commits.
+
+## Skills (Cursor + Claude Code)
+
+Route via `arduino` meta-skill:
+
+| Topic | Skill |
+|-------|-------|
+| Armic / arm-simulator / MQTT | `arduino-armic` |
+| Backup / download zip | `arduino-backup` |
+| Board / paths / what's running | `arduino-board` |
+| Broken app / Bridge silent | `arduino-troubleshoot` |
+| New app / web UI / Bridge | `arduino-scaffold`, `arduino-ui`, `arduino-bridge` |
+
+Skills live in `~/.cursor/skills-cursor/arduino-*` (Claude Code: `~/.claude/skills/`).
+
+## Docker gotcha
+
+Apps run in containers. Only the app folder is mounted at `/app` by default. Code that reads `/home/arduino/...` inside the container needs extra bind mounts (see `board-backup/scripts/apply-volumes.sh`).
+
+## Protected paths (never delete without user OK)
+
+- `~/ArduinoApps/armic`
+- `~/ArduinoApps/board-backup`
+- `~/ArduinoApps/chat-llm`
+- `~/.cursor/skills-cursor/arduino-*`
+- `~/.cursor/rules/`
+- `/var/lib/arduino-app-cli/models/`
+- Active app `.cache/` in use

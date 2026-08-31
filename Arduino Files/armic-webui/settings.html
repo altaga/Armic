@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<!--
+SPDX-FileCopyrightText: Armic project
+SPDX-License-Identifier: MPL-2.0
+
+Calibration and settings. Separate from the main controller on purpose: this
+page can write raw PWM values outside a joint's calibrated band, which is how
+servos get destroyed. Keeping it behind its own URL makes that deliberate.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Armic :: Calibration & Settings</title>
+  <style>
+    :root {
+      --bg: #0d0d0f; --panel: #16161a; --panel2: #1b1b20; --line: #2c2c33;
+      --fg: #e8e8ea; --dim: #8a8a94; --accent: #00bbff; --ok: #46c46a;
+      --warn: #ffaa00; --err: #ff5a5a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 13px;
+    }
+    .layout { display: grid; grid-template-columns: minmax(0,1fr) 380px; min-height: 100vh; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+    .main { padding: 16px 20px; min-width: 0; }
+    .side { border-left: 1px solid var(--line); background: var(--panel); padding: 16px; }
+    @media (max-width: 900px) { .side { border-left: none; border-top: 1px solid var(--line); } }
+
+    h1 { font-size: 16px; margin: 0 0 2px; letter-spacing: .04em; }
+    h2 {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+      color: var(--accent); margin: 22px 0 8px; padding-bottom: 5px;
+      border-bottom: 1px solid var(--line);
+    }
+    .hint { font-size: 11px; color: var(--dim); line-height: 1.5; margin-bottom: 10px; }
+    a { color: var(--accent); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 5px 4px; text-align: left; font-size: 12px; }
+    th { color: var(--dim); font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+    tbody tr { border-top: 1px solid var(--line); }
+    td.jname { font-weight: 600; white-space: nowrap; }
+    td.ch { color: var(--dim); font-size: 11px; }
+    input[type=number] {
+      width: 100%; min-width: 52px; background: #0a0a0c; color: var(--fg);
+      border: 1px solid var(--line); border-radius: 3px; padding: 4px 5px;
+      font-family: ui-monospace, monospace; font-size: 12px;
+    }
+    input[type=number]:focus { outline: none; border-color: var(--accent); }
+    input.edited { border-color: var(--warn); background: #241d05; }
+    input.bad { border-color: var(--err); background: #2a0f0f; }
+    select {
+      background: #0a0a0c; color: var(--fg); border: 1px solid var(--line);
+      border-radius: 3px; padding: 4px; font-size: 12px;
+    }
+    select.flipped { border-color: var(--err); color: var(--err); font-weight: 700; }
+
+    button {
+      background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+      border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 12px;
+    }
+    button:hover:not(:disabled) { filter: brightness(1.3); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button.primary { background: #04405a; border-color: #067aa8; }
+    button.danger { background: #7a1f1f; border-color: #a33; font-weight: 700; }
+    button.big { width: 100%; padding: 11px; font-size: 14px; font-weight: 700; }
+    .btns { display: flex; gap: 6px; margin-top: 8px; }
+    .btns > * { flex: 1; }
+
+    .banner {
+      padding: 9px 11px; border-radius: 4px; font-size: 12px; margin-bottom: 10px;
+      border: 1px solid transparent;
+    }
+    .banner.clean { background: #12240f; border-color: #2f5c28; color: #a8e79c; }
+    .banner.dirty { background: #2a2205; border-color: #6b5a12; color: #ffd873; }
+    .banner.err   { background: #2a0f0f; border-color: #7a2b2b; color: #ffb0b0; }
+
+    .panel { background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 11px; margin-bottom: 12px; }
+    .danger-zone { border-color: #6b2222; background: #1d1010; }
+    .row { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+    .row label { flex: 0 0 74px; font-size: 11px; color: var(--dim); }
+    .row input[type=range] { flex: 1; min-width: 0; }
+    .row .val { flex: 0 0 62px; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; }
+    .toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+
+    #view { width: 100%; height: 300px; background: #08080a; border: 1px solid var(--line); border-radius: 5px; }
+    #log {
+      background: #08080a; border: 1px solid var(--line); border-radius: 4px;
+      font-family: ui-monospace, monospace; font-size: 10.5px; color: var(--dim);
+      height: 130px; overflow-y: auto; padding: 6px; white-space: pre-wrap; margin-top: 8px;
+    }
+    .tele { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 8px; }
+    .tele div { background: #0a0a0c; border: 1px solid var(--line); border-radius: 3px; padding: 5px; text-align: center; }
+    .tele span { display: block; font-size: 9px; color: var(--dim); text-transform: uppercase; }
+    .tele b { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 600; }
+
+    .app-topbar {
+      background: #1b1b20;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 20px 10px;
+    }
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .brand-logo {
+      height: 36px;
+      width: auto;
+      max-width: 120px;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      line-height: 1.1;
+    }
+    .brand-tag {
+      font-size: 11px;
+      color: var(--dim);
+      margin-top: 2px;
+    }
+    .app-nav {
+      display: flex;
+      gap: 4px;
+    }
+    .app-nav a {
+      flex: 1;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-decoration: none;
+      color: var(--dim);
+      padding: 6px 8px;
+      border-radius: 5px;
+      border: 1px solid transparent;
+    }
+    .app-nav a:hover {
+      color: var(--fg);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .app-nav a.active {
+      color: var(--accent);
+      background: rgba(0, 187, 255, 0.1);
+      border-color: rgba(0, 187, 255, 0.25);
+    }
+  </style>
+</head>
+<body>
+<header class="app-topbar">
+  <div class="app-brand">
+    <img src="logostroke.png" alt="" class="brand-logo" width="36" height="36">
+    <div>
+      <div class="brand-name">ARMIC</div>
+      <div class="brand-tag">Calibration & Settings</div>
+    </div>
+  </div>
+  <nav class="app-nav" aria-label="App pages">
+    <a href="arm-simulator.html">Controller</a>
+    <a href="wearable-mqtt.html">Wearable</a>
+    <a href="settings.html" class="active">Settings</a>
+  </nav>
+</header>
+<div class="layout">
+  <div class="main">
+    <h1>Joint calibration & bench tools</h1>
+    <div class="hint">
+      status <b id="connState">connecting…</b> ·
+      mode <b id="modeLabel">—</b>
+    </div>
+
+    <div id="banner" class="banner clean">Calibration matches the arm.</div>
+
+    <h2>Joint calibration</h2>
+    <div class="hint">
+      Edits are <b>staged</b> — nothing reaches the arm or is saved until you press
+      <b>SAVE</b>. <code>pwm_mid</code> is the tick that should produce the middle of
+      the angle range (90° for joints). <code>dir</code> −1 means the servo is
+      mounted inverted. Changing <code>dir</code> reverses the joint — the single
+      most disruptive edit here.
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Joint</th><th>Ch</th>
+          <th>PWM min</th><th>PWM mid</th><th>PWM max</th>
+          <th>Ang min</th><th>Ang max</th><th>Dir</th><th>Offset</th>
+        </tr>
+      </thead>
+      <tbody id="calRows"></tbody>
+    </table>
+    <div class="btns" style="margin-top:12px;">
+      <button id="saveBtn" class="primary big" disabled>SAVE CALIBRATION</button>
+    </div>
+    <div class="btns">
+      <button id="revertBtn" disabled>Revert edits</button>
+      <button id="defaultsBtn">Restore project defaults</button>
+      <button id="reloadBtn">Reload from arm</button>
+    </div>
+
+    <h2>Live 3D view</h2>
+    <div class="hint">Driven by real telemetry from the MCU, not by local maths — so it shows what the arm reports, including while in dry run.</div>
+    <div id="view"></div>
+    <div class="tele">
+      <div><span>base</span><b id="tBase">—</b></div>
+      <div><span>shoulder</span><b id="tSh">—</b></div>
+      <div><span>elbow</span><b id="tEl">—</b></div>
+      <div><span>wrist</span><b id="tWr">—</b></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <h2>Motor gate</h2>
+    <label class="toggle">
+      <input type="checkbox" id="dryRun" checked>
+      <span>Dry run — motors gated, maths still runs</span>
+    </label>
+    <div class="hint" style="margin-top:6px;">
+      Bench tools below need this <b>off</b>; they refuse while it is on rather
+      than appearing to work.
+    </div>
+    <div class="btns">
+      <button id="parkBtn">Park home</button>
+      <button id="haltBtn">Halt</button>
+    </div>
+    <div class="btns">
+      <button id="estopBtn" class="danger">E-STOP</button>
+    </div>
+
+    <h2>Bench tools</h2>
+    <div class="panel danger-zone">
+      <div class="hint" style="color:#ffb0b0;">
+        <b>Raw writes use the full 0–4095 range</b> and bypass the per-joint
+        clamp — that is the point, since you cannot discover a joint's real range
+        otherwise. It is also how a servo gets stalled or destroyed. Nothing here
+        changes stored calibration.
+      </div>
+      <label class="toggle" style="margin-top:8px;">
+        <input type="checkbox" id="armProbe">
+        <span style="color:#ffb0b0;"><b>Arm unsafe probe</b></span>
+      </label>
+
+      <div class="row" style="margin-top:10px;">
+        <label>Channel</label>
+        <select id="probeCh">
+          <option value="0">0 · base</option>
+          <option value="1">1 · shoulder</option>
+          <option value="2">2 · elbow</option>
+          <option value="3">3 · wrist</option>
+          <option value="4">4 · gripper</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Raw PWM</label>
+        <input type="range" id="probePwm" min="0" max="4095" step="1" value="300" disabled>
+        <span class="val" id="probePwmVal">300</span>
+      </div>
+      <div class="btns">
+        <button id="probeWriteBtn" disabled>Write</button>
+        <button id="probeReleaseBtn" disabled>Release ch</button>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <label>Sweep A</label>
+        <input type="number" id="sweepA" value="200" min="0" max="4095">
+        <label style="flex:0 0 30px;">B</label>
+        <input type="number" id="sweepB" value="400" min="0" max="4095">
+      </div>
+      <div class="row">
+        <label>Duration</label>
+        <input type="number" id="sweepMs" value="2000" min="200" max="20000" step="100">
+        <span class="val">ms</span>
+      </div>
+      <div class="btns">
+        <button id="sweepBtn" disabled>Sweep A → B</button>
+        <button id="sweepBackBtn" disabled>B → A</button>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button id="releaseAllBtn" class="danger">RELEASE ALL TORQUE</button>
+    </div>
+    <div class="hint">The arm goes limp and will fall under its own weight.</div>
+
+    <h2>Activity</h2>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script src="libs/three.min.js"></script>
+<script src="libs/socket.io.min.js"></script>
+<script src="libs/arduino.js"></script>
+<script src="calibration-client.js"></script>
+<script src="settings.js"></script>
+</body>
+</html>

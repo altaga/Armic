@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "skills": {
+    "canvas": {
+      "lastSyncedAt": 1788123051243
+    },
+    "create-hook": {
+      "lastSyncedAt": 1788123051243
+    },
+    "create-rule": {
+      "lastSyncedAt": 1788123051243
+    },
+    "create-skill": {
+      "lastSyncedAt": 1788123051243
+    },
+    "create-subagent": {
+      "lastSyncedAt": 1788123051243
+    },
+    "sdk": {
+      "lastSyncedAt": 1788123051243
+    },
+    "goal": {
+      "lastSyncedAt": 1788123051243
+    },
+    "loop": {
+      "lastSyncedAt": 1788123051243
+    },
+    "migrate-to-skills": {
+      "lastSyncedAt": 1788123051243
+    },
+    "new-repo": {
+      "lastSyncedAt": 1788123051243
+    },
+    "origin": {
+      "lastSyncedAt": 1788123051243
+    },
+    "share": {
+      "lastSyncedAt": 1788123051243
+    },
+    "review": {
+      "lastSyncedAt": 1788123051243
+    },
+    "review-bugbot": {
+      "lastSyncedAt": 1788123051243
+    },
+    "review-security": {
+      "lastSyncedAt": 1788123051243
+    },
+    "rename-chat": {
+      "lastSyncedAt": 1788123051243
+    },
+    "shell": {
+      "lastSyncedAt": 1788123051243
+    },
+    "split-to-prs": {
+      "lastSyncedAt": 1788123051243
+    },
+    "statusline": {
+      "lastSyncedAt": 1788123051243
+    },
+    "update-cli-config": {
+      "lastSyncedAt": 1788123051243
+    },
+    "update-cursor-settings": {
+      "lastSyncedAt": 1788123051243
+    },
+    "autopilot": {
+      "lastSyncedAt": 1788123051243
+    },
+    "arduino": {
+      "lastSyncedAt": 1787961761468
+    },
+    "arduino-board": {
+      "lastSyncedAt": 1787961761468
+    },
+    "arduino-bridge": {
+      "lastSyncedAt": 1787961761468
+    },
+    "arduino-catalog": {
+      "lastSyncedAt": 1787961761468
+    },
+    "arduino-scaffold": {
+      "lastSyncedAt": 1787961761468
+    },
+    "arduino-troubleshoot": {
+      "lastSyncedAt": 1787961761468
+    },
+    "arduino-ui": {
+      "lastSyncedAt": 1787961761468
+    },
+    "arduino-armic": {
+      "lastSyncedAt": 1788082898132
+    },
+    "arduino-backup": {
+      "lastSyncedAt": 1788082898132
+    }
+  },
+  "lastInventoryAt": 1788052335420
+}

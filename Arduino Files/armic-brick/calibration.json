@@ -1,0 +1,47 @@
+{
+  "base": {
+    "ang_max": 180.0,
+    "ang_min": 0.0,
+    "dir": 1,
+    "offset": 0.0,
+    "pwm_max": 500,
+    "pwm_mid": 300,
+    "pwm_min": 100
+  },
+  "elbow": {
+    "ang_max": 180.0,
+    "ang_min": 90.0,
+    "dir": 1,
+    "offset": 0.0,
+    "pwm_max": 500,
+    "pwm_mid": 300,
+    "pwm_min": 100
+  },
+  "gripper": {
+    "ang_max": 100.0,
+    "ang_min": 0.0,
+    "dir": 1,
+    "offset": 0.0,
+    "pwm_max": 440,
+    "pwm_mid": 338,
+    "pwm_min": 236
+  },
+  "shoulder": {
+    "ang_max": 180.0,
+    "ang_min": 0.0,
+    "dir": -1,
+    "offset": 0.0,
+    "pwm_max": 490,
+    "pwm_mid": 290,
+    "pwm_min": 90
+  },
+  "wrist": {
+    "ang_max": 180.0,
+    "ang_min": 0.0,
+    "dir": -1,
+    "offset": 0.0,
+    "pwm_max": 500,
+    "pwm_mid": 300,
+    "pwm_min": 100
+  }
+}

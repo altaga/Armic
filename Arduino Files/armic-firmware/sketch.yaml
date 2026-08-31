@@ -1,0 +1,8 @@
+profiles:
+  default:
+    platforms:
+      - platform: arduino:zephyr
+    libraries:
+      - Adafruit PWM Servo Driver Library (3.0.3)
+      - dependency: Adafruit BusIO (1.17.4)
+default_profile: default

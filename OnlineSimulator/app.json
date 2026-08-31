@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Armic :: Arm Controller",
+    "slug": "onlinesimulator",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/logostroke.png",
+    "scheme": "armic",
+    "userInterfaceStyle": "dark",
+    "extra": {
+      "eas": {
+        "projectId": "22442413-d66b-4987-a4cf-841295ddf2d5"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "server",
+      "favicon": "./assets/logostroke.png"
+    }
+  }
+}

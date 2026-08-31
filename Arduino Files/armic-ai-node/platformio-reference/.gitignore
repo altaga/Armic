@@ -1,0 +1,5 @@
+include/secrets.h
+lib/*/
+!.gitignore
+!.gitkeep
+.pio/

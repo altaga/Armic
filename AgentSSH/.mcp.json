@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ssh": {
+      "command": "node",
+      "args": ["C:/Users/VAI/Documents/Node/Playground/ClaudeSSH/dist/server.js"]
+    }
+  }
+}

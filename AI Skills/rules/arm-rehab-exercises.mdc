@@ -1,0 +1,51 @@
+﻿---
+description: Armic 4DOF rehab exercises on Arduino UNO Q ΓÇö photo reference poses, joint convention, floor safety. Read before editing ProtocolRunner, kinematics, or exercise docs.
+globs: docs/exercises.md,docs/kinematics.md,docs/htl-reference.md,**/ProtocolRunner.*,**/kinematics.*
+alwaysApply: false
+---
+
+# Armic Rehab Exercises ΓÇö Reference Poses (Arduino UNO Q)
+
+Controller target: **Arduino UNO Q MCU** only. Do not retarget docs or code comments to non-Arduino boards.
+
+## Joint convention (LOCKED)
+- **90┬░ all joints** = straight chain, upper arm vertical (shoulder), elbow extended, wrist aligned.
+- **shoulder 90┬░** = upper arm straight up (+Z). **>90┬░** leans forward in sagittal plane. **0┬░ / 180┬░** = upper arm horizontal (left / right).
+- **elbow 90┬░** = straight. **180┬░** = 90┬░ bend (forearm ΓèÑ upper arm). **Min 90┬░** ΓÇö never below.
+- **wrist 90┬░** = aligned with forearm.
+- **Stable home**: `{base:90, shoulder:90, elbow:95, wrist:90}` ΓÇö elbow 95 resists gravity hunt.
+
+## Floor rule (NEVER violate)
+- Grid/floor at **Z = 0**. Base pivot at **Z = 60 mm** (`FLOOR_OFFSET`).
+- Before applying any exercise pose or lerp, tip Z from `fk_solve()` must be **ΓëÑ 15 mm**.
+- **Never** lerp shoulder 180Γåö90 while elbow also moves ΓÇö mid-pose chevron/V does not match photos and can dive toward floor.
+- Elbow band **[90┬░, 180┬░]** only.
+
+## Exercise 1 ΓÇö Bicep Curl (BC)
+| | Angles `{b, sh, el, wr}` | Visual |
+|--|--|--|
+| **Bottom** | `{90, 120, 170, 180}` | Tip DOWN |
+| **Top** | `{90, 120, 170, 25}` | Tip UP (wrist only) |
+| **Motion** | Shoulder **120┬░** + elbow **170┬░** locked. Wrist only 180ΓåÆ25. |
+
+## Exercise 2 ΓÇö Lateral Raise
+Photos: `docs/refs/lateral-tip-down.png`, `docs/refs/lateral-tip-out.png`
+| | Angles `{b, sh, el, wr}` | Visual |
+|--|--|--|
+| **Tip OUT** | `{90, 90, 180, 90}` | Tip horizontal out |
+| **Tip DOWN** | `{90, 90, 180, 180}` | Tip DOWN |
+| **Motion** | Shoulder **90┬░** + elbow **180┬░** locked. Wrist only 90Γåö180. Seq `0ΓåÆ1ΓåÆ0`. |
+| **WRONG** | Invented mid-waypoints; shoulder lead; hang sh=180; poses not in the two photos. |
+
+## Exercise 3 ΓÇö Elbow Flexion
+| | Angles `{b, sh, el, wr}` | Visual |
+|--|--|--|
+| **Extended** | `{90, 0, 95, 90}` | Upper arm horizontal LEFT (`sh 0`, not 180) |
+| **Peak** | `{90, 0, 180, 180}` | Tip back toward base |
+| **Motion** | Shoulder fixed **0┬░**. Elbow + wrist flex together. |
+| **WRONG** | `shoulder 180` ΓÇö folds toward floor. |
+
+## Implementation rules
+- Exercises: synced multi-waypoint S-curve, brief hold at peak, 3 reps ΓåÆ stable home.
+- Serial: `exercise bicep|lateral|elbowflex`
+- After changing poses, verify on hardware against user photos.

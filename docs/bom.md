@@ -2,6 +2,16 @@
 
 One demo station. All items in the **main list** are required unless marked optional.
 
+**Cost summary (USD, Aug 2026):**
+
+| Tier | Items | Approx. total |
+|------|--------|----------------|
+| **Core arm station** | UNO Q + 12 V PSU + HW-688 + PCA9685 + 4-DOF kit + interconnect | **~$237** |
+| **+ Wearable** | M5 Core2 (Edge Impulse classifier → MQTT) | **+$36 → ~$273** |
+| **Hobby baseline** | OWI-class arm kit only (no UNO Q, no agent, no safety stack) | **~$48** |
+
+The **+$189** over a bare hobby arm buys: dual-brain UNO Q host, 5-layer safety stack, on-device LLM agent, MQTT wearable loop, and calibration SSoT — see the Creativity table in the Hackster story.
+
 ---
 
 ## Main hardware list

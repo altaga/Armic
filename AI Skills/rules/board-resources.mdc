@@ -1,0 +1,49 @@
+---
+description: UNO Q disk and RAM limits — check before downloads, models, and Docker
+alwaysApply: true
+---
+
+# Board resource health (UNO Q)
+
+This board has **two partitions** and tight headroom. Always protect both.
+
+## Disk
+
+| Partition | Role | Healthy | Warning |
+|-----------|------|---------|---------|
+| `/` (root) | OS, Docker, LLM models | **> 1 GB free** | < 500 MB free |
+| `/home/arduino` | Projects, source, caches | **> 5 GB free** | < 2 GB free |
+
+Before adding models, Docker images, or large copies:
+
+1. Run `df -h / /home/arduino`.
+2. Prefer project files and dev clones under `/home/arduino`, not root.
+3. **Never delete** without user OK: `ArduinoApps/armic`, `ArduinoApps/board-backup`, `ArduinoApps/chat-llm`, `/var/lib/arduino-app-cli/models/`, `~/.cursor/skills-cursor/arduino-*`, active app caches in use.
+4. Safe cleanup when root is tight:
+   - `sudo apt-get clean`
+   - `docker image prune -f` (dangling only)
+   - `arduino-app-cli app clean-cache <unused-app>` for apps not being developed
+   - Avoid `docker image prune -a` unless user agrees — it stops all containers and forces image re-pull.
+
+Avoid duplicate GGUF copies on root (one path in `/var/lib/arduino-app-cli/models/` is enough).
+
+## RAM (~3.6 GB total)
+
+- **One app at a time** on the board (`arduino-app-cli app start` stops the other).
+- **One local LLM loaded** in the runner at a time (~500–900 MB). Armic uses Qwen 3.5 0.8B only.
+- Do not stack heavy workloads: Armic + LLM + extra Docker services + large builds.
+- If inference fails with 503 / memory errors, stop unused apps and retry with lower `max_tokens`.
+
+## After risky operations
+
+After Docker prune, model install, disk cleanup, or network experiments: verify with `df -h /`, `free -h`, and `arduino-app-cli app list` that Armic (or the active app) is still **running**.
+
+## Backup before risky work
+
+Use the `arduino-backup` skill or Board Backup UI (discover URL with `hostname -I`):
+
+- Web: `http://<board-ip>:7000/download.html` (starts Board Backup app — stops Armic)
+- Host zips: `~/backups/` (can run while Armic is up)
+- After `app clean-cache` on board-backup, run `~/ArduinoApps/board-backup/scripts/apply-volumes.sh`
+
+Do not store board IP or hostname in rules, skills, or source files.

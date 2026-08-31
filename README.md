@@ -433,25 +433,38 @@ flowchart LR
 
 ### 4-tool brick — structured control, not raw joint angles
 
-A rehab session is a **structured control loop** — the LLM never outputs raw joint angles.
+The LLM **never** emits joint targets. It calls JSON tools; the MCU enforces limits.
 
-| Tool | Params | Purpose |
-|------|--------|---------|
-| `run_arm_protocol` | `protocol` | Demos only: `home`, `htl`, `snake`, … |
-| `list_rehab_routes` | — | **3** presets (light / medium / heavy) as cards |
-| `suggest_rehab_intent` | `description` | Route match — **display only** |
-| `show_rehab_route` | `route_id` | One card — **display only** |
+```mermaid
+flowchart LR
+  U["Patient / PT chat"] --> Q["Qwen 0.8B"]
+  Q --> T["4 JSON tools"]
+  T --> F["FastAPI route runner"]
+  F --> B["Bridge RPC"]
+  B --> M["MCU · IK · safety"]
 
-Code-accurate surface: [`AGENTS.md`](AGENTS.md) §4 · [`agent/tools.py`](Arduino%20Files/armic-mpu/agent/tools.py).
+  classDef edge fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
+  classDef gate fill:#047857,color:#ffffff,stroke:#6ee7b7,stroke-width:2px
+  class Q,T,F edge
+  class M gate
+```
 
-| Adaptation trigger | Action |
-|--------------------|--------|
-| 3 strong reps (quality ≥ **0.75**) | Widen ROM **+5°** and/or extend hold |
-| 3 weak reps (quality < **0.40**) | Narrow ROM **−5°** and/or reduce speed |
-| Rehab motion from chat | ❌ User must press **Execute** on route card |
+| Tool | Params | Does |
+|------|--------|------|
+| `run_arm_protocol` | `protocol` | Demo motions only (`home`, `htl`, `snake`, …) |
+| `list_rehab_routes` | — | Show light / medium / heavy cards |
+| `suggest_rehab_intent` | `description` | Match route — **display only** |
+| `show_rehab_route` | `route_id` | One route card — **display only** |
 
-> **LLM brick:** swap Qwen for Claude / GPT via HTTPS proxy — same 4 JSON tools, same safety gate on MCU.
+| Wearable signal | Agent action |
+|-----------------|--------------|
+| 3× rep quality **≥ 0.75** | Widen ROM **+5°** |
+| 3× rep quality **< 0.40** | Narrow ROM **−5°** · slow speed |
+| User asks to start rehab in chat | ❌ Must press **Execute** on route card |
 
+Spec: [`AGENTS.md`](AGENTS.md) §4 · [`agent/tools.py`](Arduino%20Files/armic-mpu/agent/tools.py). Swap Qwen for Claude/GPT via HTTPS proxy — **same 4 tools**, same MCU safety gate.
+
+---
 ### How we built ARMIC — agentic development on the real board
 
 ```mermaid

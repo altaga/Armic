@@ -1,18 +1,29 @@
 # Web-optimized media for README, docs, and deploy references.
 
-| Folder | Size | Role |
-|--------|------|------|
-| **`Images/`** (this folder, excl. `originals/`) | ~2.5 MB | PNG/JPG/MP4 used by README and docs |
-| **`Images/originals/`** | ~456 MB | Full-res backup before optimization — **local only** (gitignored) |
+| Folder | Role |
+|--------|------|
+| **`Images/`** (excl. `originals/`) | PNG/JPG for README · MP4 for local/demo reel |
+| **`Images/originals/`** | Full-res backup — **local only** (gitignored) |
 
-## Formats
+## README policy (GitHub / Hackster)
 
-- **Demos in README:** animated **GIF** (`Images/*.gif`) — GitHub and Hackster strip `<video>` tags; MP4 lives alongside for local/docs use
-- **Demos (local):** MP4 (H.264, 560px wide) in `Images/*.mp4`
-- **Screenshots:** PNG/JPG resized to max 1040px wide (`mainUI.png`, `onlinesimulator.png`, …)
-- **Logo:** `logostroke.png` at 840px (README); app uses 128px copy in `OnlineSimulator/assets/`
+- **Use PNG/JPG only** in markdown — `<img>` or `![alt](path)`.
+- **Do not embed `<video>` or `.gif`** in README — GitHub strips video tags; GIFs are not committed to keep repo size down.
+- **MP4 clips** (`Images/*.mp4`) are tracked for local viewing and contest reels — link by filename in [docs/demos-and-exercises.md](../docs/demos-and-exercises.md).
 
-## Restore or re-optimize
+## Tracked screenshots (each used once in README)
+
+| File | Section |
+|------|---------|
+| `logostroke.png` | Header |
+| `Armic_bb.png` | BOM wiring |
+| `Arduino.jpg` · `Arm.png` | Hardware hero |
+| `mainUI.png` · `testmqttUI.png` · `applab.png` · `AI Node.png` | Web UI |
+| `HW688 & PCA.png` | Power chain |
+| `onlinesimulator.png` | Online Simulator |
+| `warmingupagent.png` · `agentready.png` | Edge agent |
+
+## Re-optimize
 
 From repo root, after `Images/originals/` exists locally:
 
@@ -22,4 +33,4 @@ npm install
 npm run optimize
 ```
 
-See [`originals/README.md`](originals/README.md) for backup details.
+See [`originals/README.md`](originals/README.md).

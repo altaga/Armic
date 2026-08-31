@@ -33,9 +33,9 @@
 |---------|---------|
 | Build | [BOM](#things-used--bill-of-materials-bom) · [Hardware](#hardware--off-the-shelf-wired-cleanly) · [Deploy](#deploy-on-arduino-uno-q--the-real-system) · [Run](#how-to-run-it--6-steps-20-minutes) |
 | Story | [Problem](#the-problem-we-built-this-for) · [Session loop](#what-if-therapy-happened-with-you--not-to-you) · [UNO Q](#why-arduino-uno-q-because-its-two-brains-in-one) |
-| Motion | [Rehab GIFs](#rehabilitation-in-motion--the-3-protocols) · [Demo repertoire](#bonus-motion-repertoire--demo-capability-and-calibration-self-check) |
+| Motion | [Rehab protocols](#rehabilitation-in-motion--the-3-protocols) · [Demos](#demo-repertoire--calibration-check) |
 | Software | [UI screens](#the-full-interface--four-screens-one-board) · [Simulator](#no-board-no-problem--enter-the-online-simulator) · [Agent](#the-agent-inside-qwen35-08b-on-the-uno-q-mpu) |
-| Project | [Token](#why-we-launched-armic--making-the-project-real-the-honest-story) · [Team](#the-team-behind-armic--biomedical-engineers-not-crypto-bros-heres-the-proof) · [Roadmap](#whats-next--hackster-submission-is-the-milestone-not-the-finish-line) · [Math docs](#deep-dive--for-judges-who-want-the-math) |
+| Project | [Token](#why-we-launched-armic--making-the-project-real) · [Team](#the-team) · [Roadmap](#roadmap) · [Docs hub](#deep-dive--for-judges-who-want-the-math) |
 
 ---
 
@@ -175,82 +175,44 @@ flowchart TB
 
 ## Meet the arm: 4 DOF, $40 servos, industrial-grade software
 
-Under the hood: **MG90 hobby servos** on a standard 4-DOF desktop kit — nothing custom machined.
-
-<p align="center">
-  <img src="./Images/Arm.png" alt="4-DOF MG90 rehabilitation arm at calibrated pose" width="560">
-</p>
+**MG90 hobby servos** on a standard 4-DOF kit — nothing custom machined. ARMIC adds FK/IK, S-curves, floor guards, HTL carries, and photo-matched rehab trajectories so a ~$50 kit moves like lab hardware.
 
 | Without ARMIC | With ARMIC on UNO Q |
 |---------------|---------------------|
-| Stall · jitter · posture flip | FK/IK · S-curves · floor guards · HTL tuck |
-| ~$40 hardware | ~$40,000-class *motion behavior* via software |
+| Stall · jitter · posture flip | FK/IK · micro-step planning · 18°/s therapy cap |
+| ~$50 hardware | ~$40k-class *motion behavior* via firmware |
 
-> **Contest thesis:** hobby kits fail therapy — we fixed it in firmware so a kitchen-table arm can run repeatable, safe, measurable rehab.
-
-### The 10 reasons this doesn't behave like a "normal hobby servo arm"
-
-| — | If you took the MG90s and ran raw PWM… | With ARMIC software running on UNO Q… |
-|---|---|---|
-| 1. FK / IK | Guess angles with a protractor. Hand-tune. | Analytical Law-of-Cosines solver. Dual branch. 0.5 mm self-verify. |
-| 2. Per-servo calibration | "90°" on one servo ≠ 90° on another. Gear grind. | Measured MIN/CENTER/MAX per channel. Shoulder inverted. Wrist non-linear. |
-| 3. Waypoint planning | One big IK jump → SNAP, posture flip, scraped table. | 2 mm micro-steps. IK at every step. Continuous smooth path. |
-| 4. Loaded carries | Shoulder stalls. Buzzes. Sags. PSU trips. | Heavy-Tucked-Lift sequence: reach → fold → carry tucked → home. **67% less shoulder torque.** |
-| 5. Motion profiles | Linear snaps. Servo ringing. Current spikes. Deadly for rehab. | Cubic ease-in-out. 7-segment S-curves. 18°/s therapy speed cap. |
-| 6. Torque derating | Full speed into heavy poses. Thermal shutdown. Lost steps. | Pose + payload estimation. 80% strain → 50% velocity. Safety first. |
-| 7. Branch continuity | Mid-path "elbow flip." Orbital demos stutter. | Nearest-previous + manipulability pick. Never random. |
-| 8. Floor guards | Tip drags table. Elbow past 90° → stripped gears. | Tip Z ≥ 15 mm. Elbow ∈ [90, 180]. Every target, every tick. |
-| 9. Safe home pose | IK to origin → singularity. Jitter hunt at 90°. | Joint-space home {90, 90, 95, 90}. Elbow 95° specifically to resist gravity hunt. |
-| 10. Synced rehab trajectories | Wrong muscle group. Jerky. Zero hold. | Photo-matched waypoints. Cubic sync ALL joints. Hold at peak. 3 reps. Home. |
-
-**Result:** A $40 hobby arm behaves like hardware 1000× its price. Software is the multiplier. The Arduino UNO Q is the chassis that makes it possible.
+Full **10-layer software stack** (calibration, branch continuity, E-STOP, home @ elbow 95°): [docs/demos-and-exercises.md](docs/demos-and-exercises.md#why-this-is-not-a-raw-servo-arm) · [control-stack.md](docs/control-stack.md).
 
 ---
 
 ## Rehabilitation in motion — the 3 protocols
 
-ARMIC launches with **3 upper-limb protocols** · **3 reps each** · cubic ease · hold at peak · gravity-safe home.
+**3 upper-limb exercises** · **3 reps each** · cubic ease · hold at peak · gravity-safe home (elbow **95°**).
 
-| 💪 Bicep curl | 🪽 Lateral raise | 🔁 Elbow flexion |
-|---|---|---|
-| <img src="./Images/10bicep.gif" alt="Bicep curl demo" width="280"> | <img src="./Images/11lateral.gif" alt="Lateral raise demo" width="280"> | <img src="./Images/12elbow.gif" alt="Elbow flexion demo" width="280"> |
+| ID | Protocol | Motion summary |
+|----|----------|----------------|
+| `bicep` | Bicep curl | Locked shoulder + elbow · wrist **180° → 25°** |
+| `lateral` | Lateral raise | Locked shoulder + elbow · wrist tip-out → tip-down |
+| `elbowflex` | Elbow flexion | Shoulder horizontal · elbow **95° → 180°** |
 
-Exercise IDs: `bicep` · `lateral` · `elbowflex` — waypoints in [docs/exercises.md](docs/exercises.md).
-
-| Protocol | Motion summary |
-|----------|----------------|
-| **Bicep curl** | Locked shoulder + elbow · wrist **180° → 25°** |
-| **Lateral raise** | Locked shoulder + elbow · wrist tip-out → tip-down |
-| **Elbow flexion** | Shoulder horizontal · elbow **95° → 180°** |
+Waypoints and math: [docs/exercises.md](docs/exercises.md). Try motions now in the [**Online Simulator**](https://onlinesimulator.expo.app) (no board required).
 
 ---
 
-## Bonus: Motion repertoire — demo capability AND calibration self-check
+## Demo repertoire — calibration check
 
-Before or after therapy — the arm can run a full repertoire of calibrated motion sequences.
-
-These sequences do **double duty**:
-
-| Role | What you get |
-|------|--------------|
-| **Showcase** | Tucked carries, orbital IK, strikes, transport, loaded holds — judges and patients see "real robot" motion |
-| **Calibration check** | Same kit + firmware → if all 5 demos land without scrape / flip / stall, your `calibration.json` matches hardware |
-
-| HTL tucked carry | Orbital trace | Cobra strike | Transport pose | Loaded dumbbell hold |
-|---|---|---|---|---|
-| <img src="./Images/3htf.gif" alt="HTL tucked carry demo" width="230"> | <img src="./Images/6orbit.gif" alt="Orbital IK path demo" width="230"> | <img src="./Images/8cobra.gif" alt="Cobra strike demo" width="230"> | <img src="./Images/2trans.gif" alt="Compact transport demo" width="230"> | <img src="./Images/9dumbell.gif" alt="Loaded dumbbell hold demo" width="230"> |
-
-**Build checklist — run after wiring:**
+Five demo protocols double as a **post-wiring self-check** — if all land without scrape, flip, or stall, `calibration.json` matches your kit.
 
 | Demo | Validates |
 |------|-----------|
-| **Orbital trace** | IK + wrist pitch 0 → base/shoulder/elbow/wrist calibration consistent |
-| **HTL tucked carry** | Torque + floor guard → tip Z ≥ 15 mm · ~67% less shoulder strain at tuck |
-| **Cobra strike** | Delta snap/brake → max 30°/tick clamp live |
-| **Transport pose** | 60 s packed hold → no hunt · idle PWM stop |
-| **Loaded dumbbell hold** | 17 g / 170 g / 500 g → Yoshikawa manipulability ≥ 0.4 |
+| Orbital trace | IK + wrist calibration |
+| HTL tucked carry | Floor guard · tip Z ≥ 15 mm |
+| Cobra strike | Delta snap/brake clamp |
+| Transport pose | 60 s hold · no hunt |
+| Loaded dumbbell hold | Manipulability ≥ 0.4 |
 
-> ✅ All 5 pass → run **Bicep / Lateral / Elbow** therapy next.
+Protocol IDs and demo media: [docs/demos-and-exercises.md](docs/demos-and-exercises.md).
 
 ---
 
@@ -267,10 +229,10 @@ Everything lives on the UNO Q. **12 V in · Wi-Fi on · open `http://uno-q.local
 | Main UI — session dashboard | MQTT wearable HUD — 6 live topics |
 |---|---|
 | <img src="./Images/mainUI.png" alt="Main UI dashboard" width="520"> | <img src="./Images/testmqttUI.png" alt="MQTT wearable HUD" width="520"> |
-| **App Lab containers — 3/3 UP** | **Agent state: ready. Warm-up complete.** |
-| <img src="./Images/applab.png" alt="App Lab containers running" width="520"> | <img src="./Images/agentready.png" alt="Agent ready state" width="520"> |
+| **App Lab containers — 3/3 UP** | **Reference AI Node (M5 Core2 class)** |
+| <img src="./Images/applab.png" alt="App Lab containers running" width="520"> | <img src="./Images/AI Node.png" alt="Wearable AI Node reference hardware" width="520"> |
 
-Wearable HUD is live **20 Hz** — you can watch every inference, every rep boundary, and every quality score as it happens. For a judge at a demo table? This is what makes them lean forward.
+Wearable HUD refreshes at **20 Hz** — live inference, rep boundaries, and quality scores. Details: [docs/interface.md](docs/interface.md).
 
 ---
 
@@ -278,13 +240,9 @@ Wearable HUD is live **20 Hz** — you can watch every inference, every rep boun
 
 | Power chain: 12 V → HW-688 → 5 V rail |
 |---|
-| <img src="./Images/HW688 & PCA.png" alt="Power chain HW-688" width="520"> |
+| <img src="./Images/HW688 & PCA.png" alt="Power chain HW-688 and PCA9685" width="520"> |
 
-| Breadboard wiring — full schematic |
-|---|
-| <p align="center"><a href="./Images/Armic_bb.png"><img src="./Images/Armic_bb.png" alt="Armic breadboard wiring" width="960"></a></p> |
-
-Wiring is intentionally simple — a student in a workshop can replicate it in **~20 minutes**.
+Breadboard schematic is in the [BOM section above](#breadboard-wiring--full-schematic). Wiring target: **~20 minutes** for a workshop build. Full power tree: [docs/hardware.md](docs/hardware.md).
 
 ```mermaid
 flowchart LR
@@ -462,263 +420,61 @@ flowchart LR
 | 3× rep quality **< 0.40** | Narrow ROM **−5°** · slow speed |
 | User asks to start rehab in chat | ❌ Must press **Execute** on route card |
 
-Spec: [`AGENTS.md`](AGENTS.md) §4 · [`agent/tools.py`](Arduino%20Files/armic-mpu/agent/tools.py). Swap Qwen for Claude/GPT via HTTPS proxy — **same 4 tools**, same MCU safety gate.
-
----
-### How we built ARMIC — agentic development on the real board
-
-```mermaid
-flowchart LR
-  A1[engineer at bench] --> A2[ssh into UNO Q App Lab]
-  A2 --> A3[agent edits firmware + MPU code]
-  A3 --> A4[deploy + dry-run protocol on hardware]
-  A4 --> A5[watch rep quality + adapt]
-
-  classDef step fill:#1e40af,color:#ffffff,stroke:#93c5fd,stroke-width:2px
-  class A1,A2,A3,A4,A5 step
-```
-
-We built firmware, backend, calibration, and rehab protocols **on the actual UNO Q** — not cross-compile-then-pray on a laptop. An coding agent SSH'd into the App Lab `arduino:python` container, ran the same **4-tool contract** the patient agent uses (`run_arm_protocol`, `list_rehab_routes`, `suggest_rehab_intent`, `show_rehab_route`), and self-corrected against live WebSocket telemetry. Safety invariants (elbow 90–180°, 15 mm floor guard, 1500 ms watchdog, calibration SSoT) are enforced in **firmware**, not in prompt text.
-
-#### AI Skills + AgentSSH — how agents develop on real hardware
-
-| Asset | Purpose |
-|-------|---------|
-| [`AGENTS.md`](AGENTS.md) | **Judge/agent spec** — architecture, safety, 4-tool brick, MQTT contract, secrets policy |
-| [`AI Skills/`](AI%20Skills/) | 31 Cursor/Claude skills + 3 rules for UNO Q / ARMIC development (see [`ARDUINO-BUNDLE.md`](AI%20Skills/skills/ARDUINO-BUNDLE.md)) |
-| [`AgentSSH/`](AgentSSH/) | MCP server — 16 SSH tools so your **laptop agent** deploys, dry-runs, and flashes the board remotely |
-
-Two dev loops, same contract: **(A)** agent on the board with skills mounted, or **(B)** agent on your PC via AgentSSH → `uno-q.local`. Contest judges running agents should start at `AGENTS.md`.
-
-<img src="./Images/0.5claude.gif" alt="Agent coding directly on the Arduino UNO Q via SSH during bench bring-up" width="680">
-
-> 🔒 **Patient-deploy handoff.** Engineering SSH + cloud CLI keys are for **build/calibration only**. A shipped clinic unit runs **on-device Qwen 0.8B** via llama.cpp → `tools.py` → FastAPI → MCU. Wipe temp API keys and lock SSH before patient handoff.
-
-### Prompt examples that reliably trigger correct agent actions
-
-Each scenario: NL prompt → JSON tool calls → agent answer.
+Spec: [`AGENTS.md`](AGENTS.md) §4 · [`agent/tools.py`](Arduino%20Files/armic-mpu/agent/tools.py). Prompt scenarios and full model matrix: [docs/agent.md](docs/agent.md).
 
 ---
 
-#### Scenario 1 · Strong session — adaptation forward
+### Built on the real board
 
-| Context | Detail |
-|---------|--------|
-| Patient | 67F post-stroke · week 9 |
-| Signal | Last 3 elbow flexion reps · quality **> 0.75** |
+Firmware, backend, and rehab protocols were developed **on the UNO Q** via App Lab SSH and [AgentSSH/](AgentSSH/) — same **4-tool contract** as the patient agent. Safety (elbow 90–180°, 15 mm floor, 1500 ms watchdog, calibration SSoT) lives in **firmware**, not prompts.
 
-> 💬 **Prompt:**
-> ```
-> Maria completed 3 consecutive elbow flexion reps at 142° ROM with quality 0.88/1.0.
-> Patient has reported mild stiffness today. Run the next appropriate protocol.
-> ```
-
-🛠️ **Tool calls:**
-
-```json
-[
-  { "tool": "suggest_rehab_intent", "args": { "patient_context": "67F post-stroke 9 weeks, 3 consecutive elbow flexion reps 142° ROM, quality 0.88, reported mild stiffness today" } },
-  { "tool": "run_arm_protocol", "args": { "protocol_name": "elbowflex-set", "reps": 3, "speed": 18 } }
-]
-```
-
-✅ **Answer:** Widen ROM **+5°** → 147° · extend hold · warm-up speed 14°/s then 18°/s if next set clears 0.80.
-
----
-
-#### Scenario 2 · Fatigue — adaptation back
-
-| Context | Detail |
-|---------|--------|
-| Exercise | Lateral raise |
-| Qualities | **0.31 · 0.36 · 0.28** (all below 0.40) |
-| ROM | 38° · 40° · 34° vs target 55° |
-
-> 💬 **Prompt:**
-> ```
-> Last 3 consecutive lateral raise rep_end quality scores: 0.31, 0.36, 0.28.
-> Actual ROM: 38°, 40°, 34° vs target 55°. Patient: 67F post-stroke 9 weeks.
-> ```
-
-🛠️ **Tool calls:**
-
-```json
-[
-  { "tool": "run_arm_protocol", "args": { "protocol_name": "lateral-set", "reps": 3, "speed": 12, "rom_target_override": 50 } }
-]
-```
-
-✅ **Answer:** ROM 55° → **50°** · speed 18°/s → **12°/s** · adaptation narrows ROM and slows the next set (avg quality 0.32).
-
----
-
-#### Scenario 3 · PT introspection — HTL shoulder torque
-
-| Context | Detail |
-|---------|--------|
-| Ask | HTL waypoints · highest shoulder torque · subacromial clearance |
-
-> 💬 **Prompt:**
-> ```
-> Show me the Heavy-Tucked-Lift waypoints and tell me which phase has the highest
-> shoulder torque fraction. Should a patient with known subacromial pain run it?
-> ```
-
-🛠️ **Tool calls:**
-
-```json
-[
-  { "tool": "show_rehab_route", "args": { "route_name": "htl" } }
-]
-```
-
-| HTL phase | Duration | Shoulder torque |
-|---|---|---|
-| IDLE → REACH | 2200 ms | **1.00** ✴️ highest |
-| REACH → FOLD_IN | 900 ms | 0.80 |
-| FOLD_IN → CARRY | 2400 ms | 0.33 |
-| CARRY → HOME_95 | 1800 ms | 0.90 |
-| HOME_95 → RELEASE | 500 ms | 1.00 |
-
-✅ **Clearance:** Avoid in active subacromial impingement — REACH/RELEASE at 1.00 in impingement arc.
-
----
-
-#### Scenario 4 · Care-team onboarding — full catalog
-
-| Context | Detail |
-|---------|--------|
-| Ask | Every rehab route · 1-line clinical note each |
-
-> 💬 **Prompt:**
-> ```
-> List every rehab route ARMIC knows, with a 1-line clinical note each.
-> ```
-
-🛠️ **Tool calls:**
-
-```json
-[
-  { "tool": "list_rehab_routes", "args": {} }
-]
-```
-
-✅ **Agent catalog** (narrative names for judges — code split: **3 routes · 9 protocols · 3 exercises**, see [`AGENTS.md`](AGENTS.md) §4):
-
-| ID | Clinical note |
-|----|---------------|
-| **home** | Gravity-safe 95° elbow rest · park after every session |
-| **park** | Tucked transport pose between rooms |
-| **htl** | Object transfer · REACH 1.0 shoulder torque · avoid impingement |
-| **reach-carry** | Long reach · Yoshikawa derate below 0.7 manipulability |
-| **orbital** | Circumduction ROM · wrist neutral |
-| **cobra** | Serratus punch · not for acute cervical instability |
-| **bicep-set** | Shoulder + elbow locked · wrist curl only · post-op week 4+ |
-| **lateral-set** | Shoulder + elbow locked · deltoid rehab |
-| **elbowflex-set** | Shoulder horizontal · elbow 95→180 · post-stroke hemiparesis |
-
----
-
-**Bottom line:** Edge LLM = **auditable tool-use inside a $79 board** · privacy · zero-cloud autonomy · swappable brick for clinical dashboards.
-
----
-
-## Why the reward layer matters, and why we launched a token (the honest story)
-
-People ask: *"Why onchain? Why a token? This is a rehab robot."*
-
-| Layer | Role |
+| Asset | Role |
 |-------|------|
+| [`AGENTS.md`](AGENTS.md) | Judge/agent spec |
+| [`AI Skills/`](AI%20Skills/) | 31 skills + 3 rules ([bundle](AI%20Skills/skills/ARDUINO-BUNDLE.md)) |
+| [`AgentSSH/`](AgentSSH/) | 16 MCP SSH tools · laptop → `uno-q.local` |
+
+---
+
+## Why we launched $ARMIC — making the project real
+
+**$ARMIC funds the build** — UNO Q stations, arm kits, bench time, and community. It is **not** a patient reward or clinical incentive layer.
+
+| | |
+|---|---|
 | **Product** | UNO Q robot · edge agent · 5-layer safety · wearable · calibration SSoT |
-| **Token** | Engagement + launch proof — **not** the clinical product |
+| **Token** | Launch proof · hardware fund · **not** the therapy loop |
 
-The token proves three things a GitHub repo alone cannot:
+Creator fees route **100%** to a rehab hardware fund. Contract `DcTVUogWykX1JeBmTq48Fzj2Lc3Y7zwHQS1CyZ9SHnXf` · mint/freeze authority **disabled** · launched 2026-08-30.
 
-| # | Proof | Why it matters |
-|---|-------|----------------|
-| 1 | **We can launch** | Liquidity · graduated fees · 100% to rehab hardware fund — pilot-grade accountancy |
-| 2 | **We can build audience** | [@projectarmic](https://x.com/projectarmic) — community beyond the bench |
-| 3 | **We failed and learned** | Wallet compromise → multisig · custody · what *not* to do in regulated incentives |
-
-### Who the reward layer serves
-
-| Stakeholder | Value |
-|-------------|-------|
-| **Patient (Maria)** | Measurable, shareable progress — not just "great job" for a week |
-| **Insurer** | Evidence over self-report · Merkle records (planned) |
-| **System** | Creator fees **100%** → more kits · more homes |
-
-### How the $ARMIC reward math works (locked, same math the on-device agent runs)
-
-The reward layer ties to **🔒 Trusted record + reward** in the session loop diagram.
-
-| Condition | Required |
-|-----------|----------|
-| Set complete | 3-rep rehab set finishes (`set_completed`) |
-| Quality gate | Average rep quality **≥ 0.70** (0.00–1.00) |
-
-> **Reward = `10 + 90 × min(1.0, average_rep_quality)`**
-
-| Avg quality | $ARMIC | Scenario |
-|-------------|--------|----------|
-| **0.70** | 73 | Minimum mint |
-| **0.88** | 89.2 | Strong session (Scenario 1) |
-| **1.00** | 100 | Perfect cap |
-| **0.32** | — | Fatigue — adapt down · no mint (Scenario 2) |
-
-Also runs with ROM adaptation: 3× quality ≥ **0.75** → **+5°** · 3× &lt; **0.40** → **−5°** / slower.
-
-### Hard token facts (no hand-waving)
-
-| Fact | Details |
-|---|---|
-| Network | Solana SPL token |
-| Contract address (public) | `DcTVUogWykX1JeBmTq48Fzj2Lc3Y7zwHQS1CyZ9SHnXf` |
-| **Mint authority** | **DISABLED** (permanently — no more supply can ever be created) |
-| **Freeze authority** | **DISABLED** (permanently — token holder always controls theirs) |
-| Creator graduated fees | 100% reinvested back into rehab hardware fund wallet |
-| Launch | Easya.io Kickstart, 2026-08-30 15:00 UTC |
-| Purpose | Launch + incentive engagement + governance later) |
-
-The token is the engagement mechanism layered *on top* of a working rehabilitation robot. Not the other way around. That's the ARMIC difference. And the Hackster "Invent the Future with Arduino UNO Q" contest is the moment we go from "three BMEs with a token and a dream" to "three BMEs with a shipped kit, a safety document, and a judge-tested demo.
+Full facts: [docs/project-token.md](docs/project-token.md).
 
 ---
 
-## The team behind ARMIC — biomedical engineers, not crypto bros. Here's the proof.
+## The team
 
-Three biomedical engineers. Four prior **award-winning Hackster projects**. Real profiles. Real prizes. Real on-stage recognition. One obsession: making healthcare automation actually reach people.
+Three biomedical engineers · four prior Hackster wins · Maker Faire Rome alumni.
 
-This matters for the contest. The winning projects we studied — the ones that get 2,000+ upvotes, that win Best Overall, that get invited to Maker Faire Rome — they have two things in common: (1) a real human story, and (2) a team that has already shipped. ARMIC has both.
+| Member | Prior highlights |
+|--------|------------------|
+| **Victor Alonso Altamirano Izquierdo** | Best Overall — AI cardiac · Helium Creative — AgroLoRa |
+| **Alejandro Sanchez Gutierrez** | Spresense × Edge Impulse facemask prize |
+| **Luis Eduardo Arevalo Oliver** | AgroNordic 3rd · AgroLoRa Helium winner |
 
-| Team | Hackster heritage (prior wins) |
-|---|---|
-| **Victor Alonso Altamirano Izquierdo** (BME, MX City) | **Best Overall** — AI Detection of Cardiac Abnormalities · **Helium Creative Winner** — AgroLoRa · Maker Faire Rome alumni |
-| **Alejandro Sanchez Gutierrez** (BME) | **Spresense × Edge Impulse Prize** — Spresense Facemask Detector |
-| **Luis Eduardo Arevalo Oliver** (BME) | **3rd Place** Maker Faire — AgroNordic (2,182 👍) · **Helium Creative Winner** — AgroLoRa (1,907 👍) |
-
-Live profiles: [Altaga](https://www.hackster.io/Altaga) · [EdOliver](https://www.hackster.io/Edoliver) · [Alejandro_S_G](https://www.hackster.io/Alejandro_S_G) on Hackster.
-
-### Why our prior wins matter for this entry
-
-| Prior project | What ARMIC inherits |
-|---------------|---------------------|
-| **AI Cardiac — Best Overall** | Medical signal + device packaging · schematics · BOM · clinical problem framing |
-| **Spresense Facemask — Edge Impulse Prize** | Wearable + on-device classifier write-up pattern |
-| **AgroNordic / AgroLoRa (2k+ 👍)** | Community story · humility · field photos · reproducible build |
-
-> Maker Faire Rome alumni · built to score on **all five** Hackster rubric buckets — not just code.
+Profiles: [Altaga](https://www.hackster.io/Altaga) · [EdOliver](https://www.hackster.io/Edoliver) · [Alejandro_S_G](https://www.hackster.io/Alejandro_S_G)
 
 ---
 
-## What's next — Hackster submission is the milestone, not the finish line.
+## Roadmap
 
-| Timeline | Milestone |
-|---|---|
-| **Hackster submission (contest deliverable)** | ✅ Documentation, BOM with URLs + cost, schematics, editable Fritzing source, code, 14-shot demo reel, narrative story, safety gates |
-| UNO Q boot + first assist dry→live gate | 🔄 Firmware finalization + dry_run→motion gate testing |
-| **Clinical pilot (3 patients, 4 weeks)** | **Q4 2026** — ROM / dropout / rep-quality metrics tracked with IRB-adjacent consent. This is why we launched the token: to de-risk *governance* and *reward-delivery* before we are dealing with real patient data. |
-| Onchain reward pilot | Q1 2027 — first 100 patients earn $ARMIC with verifiable rep records |
-| Open-hardware kit v2 | Q2 2027 — custom PCB replaces breadboard · custom machined linkages tune MG90D backlash · 6-DOF wrist upgrade |
+| When | Milestone |
+|------|-----------|
+| **Hackster submission** | Docs · BOM · Fritzing · code · safety gates |
+| Near term | UNO Q dry_run → live motion gate |
+| Q4 2026 | Clinical pilot (3 patients, 4 weeks) |
+| Q2 2027 | Open-hardware kit v2 — PCB · tuned linkages |
+
+Contest context: [docs/project.md](docs/project.md).
 
 ---
 
@@ -735,24 +491,7 @@ Narrative lives here · equations and layer diagrams in **[docs/](docs/)** (+ [d
 | Safety stack (5 layers) | [control-stack.md](docs/control-stack.md) |
 | BOM · hardware · setup | [bom.md](docs/bom.md) · [hardware.md](docs/hardware.md) · [setup.md](docs/setup.md) |
 | Exercises · HTL · serial | [exercises.md](docs/exercises.md) · [htl-reference.md](docs/htl-reference.md) · [serial-protocol.md](docs/serial-protocol.md) |
-| Agent · token · UI narrative | [agent.md](docs/agent.md) · [token-reward.md](docs/token-reward.md) · [interface.md](docs/interface.md) |
-
----
-
-## Source code at a glance
-
-| Module | What lives there |
-|---|---|
-| [Arduino Files/armic-firmware/](Arduino Files/armic-firmware/) | MCU sketch. Bridge RPC. E-STOP gate. FK/IK. HTL FSM. S-curves. Compensators. Watchdog. |
-| [Arduino Files/armic-mpu/](Arduino Files/armic-mpu/) | Python backend. FastAPI. WebSocket 20 Hz. MQTT wearable bridge. LLM agent tool use. Session adaptation. |
-| [Arduino Files/armic-webui/](Arduino Files/armic-webui/) | Static browser UI. Three.js digital twin. Calibration gate. Wearable HUD. Exercise dashboard. |
-| [Arduino Files/armic-brick/](Arduino Files/armic-brick/) | Single source of truth. Calibration SSoT. Compose root. Mounted in all 3 containers. |
-| [Arduino Files/armic-wearable/](Arduino Files/armic-wearable/) | MQTT contract docs, Mosquitto broker config, Arduino IDE starter template. |
-| [Arduino Files/armic-ai-node/](Arduino Files/armic-ai-node/) | **AI Node build kit** — Edge Impulse + PlatformIO reference (any device can publish the wearable contract). |
-| [AGENTS.md](AGENTS.md) | Agent/judge playbook — safety, tools, MQTT, adaptation, secrets. |
-| [AgentSSH/](AgentSSH/) | MCP SSH dev loop — 16 tools for laptop → UNO Q deploy. |
-| [AI Skills/](AI%20Skills/) | Arduino agent skills bundle (31 skills + 3 rules). |
-| [OnlineSimulator/](OnlineSimulator/) | Hosted browser twin — [onlinesimulator.expo.app](https://onlinesimulator.expo.app) when no board yet |
+| Agent · token · UI | [agent.md](docs/agent.md) · [project-token.md](docs/project-token.md) · [interface.md](docs/interface.md) |
 
 ---
 

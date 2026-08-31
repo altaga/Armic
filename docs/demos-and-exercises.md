@@ -1,26 +1,16 @@
 # Demos and rehabilitation exercises
 
+> **Demo clips:** MP4 files live in [`Images/`](../Images/) (e.g. `10bicep.mp4`). GitHub/Hackster READMEs cannot embed `<video>` — open files locally or use the [Online Simulator](https://onlinesimulator.expo.app) for live motion.
+
 ## Rehabilitation exercises (3 protocols)
 
 3 reps each · cubic ease · hold at peak · return to gravity-safe home.
 
-### Bicep curl
-
-Locked shoulder + elbow. Wrist curls 180° → 25° and back.
-
-<video src="../Images/10bicep.mp4" width="420" autoplay loop muted playsinline title="Bicep curl protocol"></video>
-
-### Lateral raise
-
-Locked shoulder + elbow. Wrist rotates tip-out → tip-down.
-
-<video src="../Images/11lateral.mp4" width="420" autoplay loop muted playsinline title="Lateral raise protocol"></video>
-
-### Elbow flexion
-
-Shoulder fixed horizontal. Elbow sweeps 95° → 180°.
-
-<video src="../Images/12elbow.mp4" width="420" autoplay loop muted playsinline title="Elbow flexion protocol"></video>
+| ID | Protocol | Motion summary | Clip |
+|----|----------|----------------|------|
+| `bicep` | Bicep curl | Locked shoulder + elbow · wrist **180° → 25°** | `Images/10bicep.mp4` |
+| `lateral` | Lateral raise | Locked shoulder + elbow · wrist tip-out → tip-down | `Images/11lateral.mp4` |
+| `elbowflex` | Elbow flexion | Shoulder horizontal · elbow **95° → 180°** | `Images/12elbow.mp4` |
 
 Exercise math and waypoints: [exercises.md](exercises.md).
 
@@ -30,17 +20,13 @@ Exercise math and waypoints: [exercises.md](exercises.md).
 
 Run these after wiring to verify `calibration.json` and link lengths before therapy.
 
-| HTL tucked carry | Orbital trace | Cobra strike | Transport pose | Loaded hold |
-|---|---|---|---|---|
-| <video src="../Images/3htf.mp4" width="230" autoplay loop muted playsinline title="HTL tucked carry"></video> | <video src="../Images/6orbit.mp4" width="230" autoplay loop muted playsinline title="Orbital trace"></video> | <video src="../Images/8cobra.mp4" width="230" autoplay loop muted playsinline title="Cobra strike"></video> | <video src="../Images/2trans.mp4" width="230" autoplay loop muted playsinline title="Transport pose"></video> | <video src="../Images/9dumbell.mp4" width="230" autoplay loop muted playsinline title="Loaded hold"></video> |
-
-| Demo | What it validates |
-|------|-------------------|
-| **Orbital** | IK consistency — flat circle, wrist neutral |
-| **HTL** | Torque + floor guard — tip Z ≥ 15 mm, no shoulder buzz at fold |
-| **Cobra** | Delta snap/brake — max °/tick clamp |
-| **Transport** | Idle hold — no hunt at packed pose |
-| **Loaded hold** | Payload stress — manipulability ≥ 0.4 |
+| Demo | Clip | What it validates |
+|------|------|-------------------|
+| **Orbital trace** | `Images/6orbit.mp4` | IK consistency — flat circle, wrist neutral |
+| **HTL tucked carry** | `Images/3htf.mp4` | Torque + floor guard — tip Z ≥ 15 mm |
+| **Cobra strike** | `Images/8cobra.mp4` | Delta snap/brake — max °/tick clamp |
+| **Transport pose** | `Images/2trans.mp4` | Idle hold — no hunt at packed pose |
+| **Loaded hold** | `Images/9dumbell.mp4` | Payload stress — manipulability ≥ 0.4 |
 
 Protocol IDs: `home`, `cpose`, `transport`, `snake`, `cobra`, `gimmefive`, `orbital`, `htl`, `pendulum` — see [serial-protocol.md](serial-protocol.md).
 

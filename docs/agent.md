@@ -66,7 +66,7 @@ flowchart LR
 | [AI Skills/](../AI%20Skills/) | 31 skills + 3 rules |
 | [AgentSSH/](../AgentSSH/) | MCP — 16 SSH tools → `uno-q.local` |
 
-<video src="../Images/0.5claude.mp4" width="680" autoplay loop muted playsinline title="Agent coding on UNO Q via SSH"></video>
+Bench bring-up clip (local): `Images/0.5claude.mp4`.
 
 > **Patient handoff:** Wipe engineering SSH keys and temp API credentials before clinical deployment. Shipped units use on-device Qwen → `tools.py` → FastAPI → MCU.
 

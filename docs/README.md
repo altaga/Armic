@@ -34,10 +34,10 @@ Proof-of-concept rehab robotics on **Arduino UNO Q**. Not medical advice — see
 | Topic | Document |
 |-------|----------|
 | Problem, vision, session loop | [overview.md](overview.md) |
-| Rehab + demo motion (GIFs) | [demos-and-exercises.md](demos-and-exercises.md) |
+| Rehab + demo motion | [demos-and-exercises.md](demos-and-exercises.md) |
 | Web UI + App Lab screens | [interface.md](interface.md) |
 | Edge LLM agent + prompt examples | [agent.md](agent.md) |
-| Token / reward layer | [token-reward.md](token-reward.md) |
+| Project token ($ARMIC) | [project-token.md](project-token.md) |
 | Team, contest, roadmap | [project.md](project.md) |
 
 ## Repository map

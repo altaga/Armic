@@ -180,6 +180,8 @@ Details: [docs/demos-and-exercises.md](docs/demos-and-exercises.md).
 
 **MG90 hobby servos** on a standard 4-DOF kit — nothing custom machined. ARMIC adds FK/IK, S-curves, floor guards, HTL carries, and photo-matched rehab trajectories so a **~$50 kit moves like lab hardware**.
 
+> 🔄 **Reused hardware, new stack.** This physical arm has previously served our team as a general-purpose physical-AI test platform. The rehabilitation sensing, UNO Q dual-brain integration, embedded LLM agent, wearable IMU pipeline, and rep/ROM adaptation logic presented here are new ARMIC work, built and demoed on this bench.
+
 <p align="center">
   <img src="./Images/Arm.png" alt="4-DOF MG90 rehabilitation arm — base, shoulder, elbow, wrist, and gripper on ARMIC bench" width="720">
 </p>

@@ -669,7 +669,7 @@ export default function App() {
             <Image source={require('./assets/logostroke.png')} style={styles.brandLogo} resizeMode="contain" />
               <View>
                 <Text style={styles.brandName}>ARMIC</Text>
-                <Text style={styles.brandTag}>Aether 4DOF · Rehab Controller</Text>
+                <Text style={styles.brandTag}>ARMIC 4DOF · Rehab Controller</Text>
               </View>
             </View>
           </View>

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Armic project
 #
 # SPDX-License-Identifier: MPL-2.0
-"""Armic — reusable control layer for the Aether 4DOF rehab arm.
+"""Armic — reusable control layer for the 4DOF rehab arm.
 
 This Brick is the MPU-side API for the arm. It owns no motion logic: inverse
 kinematics, trajectory planning, S-curve profiling, joint limits, the e-stop and

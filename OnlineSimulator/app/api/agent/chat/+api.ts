@@ -3,7 +3,6 @@
 // Body JSON: { message: string, stream?: boolean }
 // stream=true: NDJSON, 1 event per line. Default=false: full JSON envelope.
 
-import { ExpoResponse } from 'expo-router/server';
 import { z } from 'zod';
 import { run_llm_chat } from '../../../../lib/server/llm';
 
@@ -17,11 +16,11 @@ export async function POST(req: Request): Promise<Response> {
   try {
     body = await req.json();
   } catch {
-    return ExpoResponse.json({ ok: false, error: 'Invalid JSON body. Expected {"message":"...", "stream":false}' }, { status: 400 });
+    return Response.json({ ok: false, error: 'Invalid JSON body. Expected {"message":"...", "stream":false}' }, { status: 400 });
   }
   const parsed = BodySchema.safeParse(body);
   if (!parsed.success) {
-    return ExpoResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+    return Response.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
   }
   const { message, stream } = parsed.data;
   const response = await run_llm_chat(message);
@@ -56,7 +55,7 @@ export async function POST(req: Request): Promise<Response> {
         controller.close();
       },
     });
-    return new ExpoResponse(stream2 as unknown as BodyInit, {
+    return new Response(stream2 as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/x-ndjson; charset=utf-8',
@@ -65,5 +64,5 @@ export async function POST(req: Request): Promise<Response> {
     }) as unknown as Response;
   }
 
-  return ExpoResponse.json(envelope, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+  return Response.json(envelope, { status: 200, headers: { 'Cache-Control': 'no-store' } });
 }

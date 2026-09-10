@@ -2,7 +2,6 @@
 // Expo Router server function. Zero hardware references. Pure simulator.
 // Body JSON: { description: string }
 
-import { ExpoResponse } from 'expo-router/server';
 import { routes_for_chat_query, match_rehab_intent, list_routes, is_list_all_request } from '../../../../lib/server/rehab';
 import { z } from 'zod';
 
@@ -15,17 +14,17 @@ export async function POST(req: Request): Promise<Response> {
   try {
     body = await req.json();
   } catch {
-    return ExpoResponse.json({ ok: false, error: 'Invalid JSON body. Expected {"description":"..."}' }, { status: 400 });
+    return Response.json({ ok: false, error: 'Invalid JSON body. Expected {"description":"..."}' }, { status: 400 });
   }
   const parsed = BodySchema.safeParse(body);
   if (!parsed.success) {
-    return ExpoResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+    return Response.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
   }
   const { description } = parsed.data;
   const matched = match_rehab_intent(description);
   const direct = routes_for_chat_query(description);
   const listAll = is_list_all_request(description);
-  return ExpoResponse.json({
+  return Response.json({
     ok: true,
     source: 'expo-server-fn/simulator',
     hardware: false,

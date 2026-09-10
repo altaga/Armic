@@ -2,7 +2,6 @@
 // ALWAYS dry_run=true. Zero hardware. Zero tunnel. Zero servos.
 // Body JSON: { protocol_name: string, reps?: number, speed?: number }
 
-import { ExpoResponse } from 'expo-router/server';
 import { run_protocol, PROTOCOLS } from '../../../../lib/server/rehab';
 import { z } from 'zod';
 
@@ -17,15 +16,15 @@ export async function POST(req: Request): Promise<Response> {
   try {
     body = await req.json();
   } catch {
-    return ExpoResponse.json({ ok: false, error: 'Invalid JSON body. Expected {"protocol_name":"...", "reps":3, "speed":18}' }, { status: 400 });
+    return Response.json({ ok: false, error: 'Invalid JSON body. Expected {"protocol_name":"...", "reps":3, "speed":18}' }, { status: 400 });
   }
   const parsed = BodySchema.safeParse(body);
   if (!parsed.success) {
-    return ExpoResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+    return Response.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
   }
   const { protocol_name, reps, speed } = parsed.data;
   const result = run_protocol(protocol_name, reps, speed);
-  return ExpoResponse.json({
+  return Response.json({
     ok: result.ok,
     source: 'expo-server-fn/simulator',
     hardware: false,

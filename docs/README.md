@@ -37,7 +37,7 @@ Proof-of-concept rehab robotics on **Arduino UNO Q**. Not medical advice — see
 | Rehab + demo motion | [demos-and-exercises.md](demos-and-exercises.md) |
 | Web UI + App Lab screens | [interface.md](interface.md) |
 | Edge LLM agent + prompt examples | [agent.md](agent.md) |
-| Project token ($ARMIC) | [project-token.md](project-token.md) |
+| Project token ($ARMIC) transparency | [TOKEN_TRANSPARENCY.md](TOKEN_TRANSPARENCY.md) |
 | Team, contest, roadmap | [project.md](project.md) |
 
 ## Repository map
